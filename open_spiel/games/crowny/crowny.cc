@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "open_spiel/games/backgammon/backgammon.h"
+#include "open_spiel/games/crowny/crowny.h"
 
 #include <algorithm>
 #include <cstdlib>
@@ -26,7 +26,7 @@
 #include "open_spiel/spiel_utils.h"
 
 namespace open_spiel {
-namespace backgammon {
+namespace crowny {
 namespace {
 
 // A few constants to help with the conversion to human-readable string formats.
@@ -66,12 +66,12 @@ const std::vector<std::vector<int>> kChanceOutcomeValues = {
     {5, 6}, {1, 1}, {2, 2}, {3, 3}, {4, 4}, {5, 5}, {6, 6}};
 
 int NumCheckersPerPlayer(const Game* game) {
-  return static_cast<const BackgammonGame*>(game)->NumCheckersPerPlayer();
+  return static_cast<const CrownyGame*>(game)->NumCheckersPerPlayer();
 }
 
 // Facts about the game
 const GameType kGameType{
-    /*short_name=*/"backgammon",
+    /*short_name=*/"crowny",
     /*long_name=*/"Backgammon",
     GameType::Dynamics::kSequential,
     GameType::ChanceMode::kExplicitStochastic,
@@ -90,7 +90,7 @@ const GameType kGameType{
       GameParameter(static_cast<std::string>(kDefaultScoringType))}}};
 
 static std::shared_ptr<const Game> Factory(const GameParameters& params) {
-  return std::shared_ptr<const Game>(new BackgammonGame(params));
+  return std::shared_ptr<const Game>(new CrownyGame(params));
 }
 
 REGISTER_SPIEL_GAME(kGameType, Factory);
@@ -148,7 +148,7 @@ std::string PositionToStringHumanReadable(int pos) {
   }
 }
 
-int BackgammonState::AugmentCheckerMove(CheckerMove* cmove, int player,
+int CrownyState::AugmentCheckerMove(CheckerMove* cmove, int player,
                                         int start) const {
   int end = cmove->num;
   if (end != kPassPos) {
@@ -165,7 +165,7 @@ int BackgammonState::AugmentCheckerMove(CheckerMove* cmove, int player,
   return end;
 }
 
-std::string BackgammonState::ActionToString(Player player,
+std::string CrownyState::ActionToString(Player player,
                                             Action move_id) const {
   if (player == kChancePlayerId) {
     if (turns_ >= 0) {
@@ -291,13 +291,13 @@ std::string BackgammonState::ActionToString(Player player,
   }
 }
 
-std::string BackgammonState::ObservationString(Player player) const {
+std::string CrownyState::ObservationString(Player player) const {
   SPIEL_CHECK_GE(player, 0);
   SPIEL_CHECK_LT(player, num_players_);
   return ToString();
 }
 
-void BackgammonState::ObservationTensor(Player player,
+void CrownyState::ObservationTensor(Player player,
                                         absl::Span<float> values) const {
   SPIEL_CHECK_GE(player, 0);
   SPIEL_CHECK_LT(player, num_players_);
@@ -335,7 +335,7 @@ void BackgammonState::ObservationTensor(Player player,
   SPIEL_CHECK_EQ(value_it, values.end());
 }
 
-BackgammonState::BackgammonState(std::shared_ptr<const Game> game,
+CrownyState::CrownyState(std::shared_ptr<const Game> game,
                                  ScoringType scoring_type,
                                  bool hyper_backgammon)
     : State(game),
@@ -356,7 +356,7 @@ BackgammonState::BackgammonState(std::shared_ptr<const Game> game,
   SetupInitialBoard();
 }
 
-void BackgammonState::SetupInitialBoard() {
+void CrownyState::SetupInitialBoard() {
   if (hyper_backgammon_) {
     // https://bkgm.com/variants/HyperBackgammon.html
     // Each player has one checker on each of the furthest points.
@@ -377,7 +377,7 @@ void BackgammonState::SetupInitialBoard() {
   }
 }
 
-int BackgammonState::board(int player, int pos) const {
+int CrownyState::board(int player, int pos) const {
   if (pos == kBarPos) {
     return bar_[player];
   } else {
@@ -387,18 +387,18 @@ int BackgammonState::board(int player, int pos) const {
   }
 }
 
-Player BackgammonState::CurrentPlayer() const {
+Player CrownyState::CurrentPlayer() const {
   return IsTerminal() ? kTerminalPlayerId : Player{cur_player_};
 }
 
-int BackgammonState::Opponent(int player) const { return 1 - player; }
+int CrownyState::Opponent(int player) const { return 1 - player; }
 
-void BackgammonState::RollDice(int outcome) {
+void CrownyState::RollDice(int outcome) {
   dice_.push_back(kChanceOutcomeValues[outcome][0]);
   dice_.push_back(kChanceOutcomeValues[outcome][1]);
 }
 
-int BackgammonState::DiceValue(int i) const {
+int CrownyState::DiceValue(int i) const {
   SPIEL_CHECK_GE(i, 0);
   SPIEL_CHECK_LT(i, dice_.size());
 
@@ -413,7 +413,7 @@ int BackgammonState::DiceValue(int i) const {
   }
 }
 
-void BackgammonState::DoApplyAction(Action move) {
+void CrownyState::DoApplyAction(Action move) {
   if (IsChanceNode()) {
     turn_history_info_.push_back(TurnHistoryInfo(kChancePlayerId, prev_player_,
                                                  dice_, move, double_turn_,
@@ -496,7 +496,7 @@ void BackgammonState::DoApplyAction(Action move) {
   }
 }
 
-void BackgammonState::UndoAction(int player, Action action) {
+void CrownyState::UndoAction(int player, Action action) {
   {
     const TurnHistoryInfo& thi = turn_history_info_.back();
     SPIEL_CHECK_EQ(thi.player, player);
@@ -527,7 +527,7 @@ void BackgammonState::UndoAction(int player, Action action) {
   --move_number_;
 }
 
-bool BackgammonState::IsHit(Player player, int from_pos, int num) const {
+bool CrownyState::IsHit(Player player, int from_pos, int num) const {
   if (from_pos != kPassPos) {
     int to = PositionFrom(player, from_pos, num);
     return to != kScorePos && board(Opponent(player), to) == 1;
@@ -536,7 +536,7 @@ bool BackgammonState::IsHit(Player player, int from_pos, int num) const {
   }
 }
 
-Action BackgammonState::TranslateAction(int from1, int from2,
+Action CrownyState::TranslateAction(int from1, int from2,
                                         bool use_high_die_first) const {
   int player = CurrentPlayer();
   int num1 = use_high_die_first ? dice_.at(1) : dice_.at(0);
@@ -547,11 +547,11 @@ Action BackgammonState::TranslateAction(int from1, int from2,
   return CheckerMovesToSpielMove(moves);
 }
 
-Action BackgammonState::EncodedBarMove() const { return 24; }
+Action CrownyState::EncodedBarMove() const { return 24; }
 
-Action BackgammonState::EncodedPassMove() const { return 25; }
+Action CrownyState::EncodedPassMove() const { return 25; }
 
-Action BackgammonState::CheckerMovesToSpielMove(
+Action CrownyState::CheckerMovesToSpielMove(
     const std::vector<CheckerMove>& moves) const {
   SPIEL_CHECK_LE(moves.size(), 2);
   int dig0 = EncodedPassMove();
@@ -590,7 +590,7 @@ Action BackgammonState::CheckerMovesToSpielMove(
   return move;
 }
 
-std::vector<CheckerMove> BackgammonState::SpielMoveToCheckerMoves(
+std::vector<CheckerMove> CrownyState::SpielMoveToCheckerMoves(
     int player, Action spiel_move) const {
   SPIEL_CHECK_GE(spiel_move, 0);
   SPIEL_CHECK_LT(spiel_move, kNumDistinctActions);
@@ -629,7 +629,7 @@ std::vector<CheckerMove> BackgammonState::SpielMoveToCheckerMoves(
   return cmoves;
 }
 
-std::vector<CheckerMove> BackgammonState::AugmentWithHitInfo(
+std::vector<CheckerMove> CrownyState::AugmentWithHitInfo(
     int player, const std::vector<CheckerMove> &cmoves) const {
   std::vector<CheckerMove> new_cmoves = cmoves;
   for (int i = 0; i < 2; ++i) {
@@ -638,7 +638,7 @@ std::vector<CheckerMove> BackgammonState::AugmentWithHitInfo(
   return new_cmoves;
 }
 
-bool BackgammonState::IsPosInHome(int player, int pos) const {
+bool CrownyState::IsPosInHome(int player, int pos) const {
   switch (player) {
     case kXPlayerId:
       return (pos >= 18 && pos <= 23);
@@ -649,7 +649,7 @@ bool BackgammonState::IsPosInHome(int player, int pos) const {
   }
 }
 
-int BackgammonState::CheckersInHome(int player) const {
+int CrownyState::CheckersInHome(int player) const {
   int c = 0;
   for (int i = 0; i < 6; i++) {
     c += board(player, (player == kXPlayerId ? (23 - i) : i));
@@ -657,7 +657,7 @@ int BackgammonState::CheckersInHome(int player) const {
   return c;
 }
 
-bool BackgammonState::AllInHome(int player) const {
+bool CrownyState::AllInHome(int player) const {
   if (bar_[player] > 0) {
     return false;
   }
@@ -680,7 +680,7 @@ bool BackgammonState::AllInHome(int player) const {
   return true;
 }
 
-int BackgammonState::HighestUsableDiceOutcome() const {
+int CrownyState::HighestUsableDiceOutcome() const {
   if (UsableDiceOutcome(dice_[1])) {
     return dice_[1];
   } else if (UsableDiceOutcome(dice_[0])) {
@@ -690,7 +690,7 @@ int BackgammonState::HighestUsableDiceOutcome() const {
   }
 }
 
-int BackgammonState::FurthestCheckerInHome(int player) const {
+int CrownyState::FurthestCheckerInHome(int player) const {
   // Looking for any checkers in home.
   // --> XPlayer scans 23 -> 18
   // --> OPlayer scans  0 -> 5
@@ -713,11 +713,11 @@ int BackgammonState::FurthestCheckerInHome(int player) const {
   }
 }
 
-bool BackgammonState::UsableDiceOutcome(int outcome) const {
+bool CrownyState::UsableDiceOutcome(int outcome) const {
   return (outcome >= 1 && outcome <= 6);
 }
 
-int BackgammonState::PositionFromBar(int player, int spaces) const {
+int CrownyState::PositionFromBar(int player, int spaces) const {
   if (player == kXPlayerId) {
     return -1 + spaces;
   } else if (player == kOPlayerId) {
@@ -727,7 +727,7 @@ int BackgammonState::PositionFromBar(int player, int spaces) const {
   }
 }
 
-int BackgammonState::PositionFrom(int player, int pos, int spaces) const {
+int CrownyState::PositionFrom(int player, int pos, int spaces) const {
   if (pos == kBarPos) {
     return PositionFromBar(player, spaces);
   }
@@ -743,11 +743,11 @@ int BackgammonState::PositionFrom(int player, int pos, int spaces) const {
   }
 }
 
-int BackgammonState::NumOppCheckers(int player, int pos) const {
+int CrownyState::NumOppCheckers(int player, int pos) const {
   return board_[Opponent(player)][pos];
 }
 
-int BackgammonState::GetDistance(int player, int from, int to) const {
+int CrownyState::GetDistance(int player, int from, int to) const {
   SPIEL_CHECK_NE(from, kScorePos);
   SPIEL_CHECK_NE(to, kScorePos);
   if (from == kBarPos && player == kXPlayerId) {
@@ -758,13 +758,13 @@ int BackgammonState::GetDistance(int player, int from, int to) const {
   return std::abs(to - from);
 }
 
-bool BackgammonState::IsOff(int player, int pos) const {
+bool CrownyState::IsOff(int player, int pos) const {
   // Returns if an absolute position is off the board.
   return ((player == kXPlayerId && pos > 23) ||
           (player == kOPlayerId && pos < 0));
 }
 
-bool BackgammonState::IsFurther(int player, int pos1, int pos2) const {
+bool CrownyState::IsFurther(int player, int pos1, int pos2) const {
   if (pos1 == pos2) {
     return false;
   }
@@ -789,7 +789,7 @@ bool BackgammonState::IsFurther(int player, int pos1, int pos2) const {
           (player == kOPlayerId && pos1 > pos2));
 }
 
-int BackgammonState::GetToPos(int player, int from_pos, int pips) const {
+int CrownyState::GetToPos(int player, int from_pos, int pips) const {
   if (player == kXPlayerId) {
     return (from_pos == kBarPos ? -1 : from_pos) + pips;
   } else if (player == kOPlayerId) {
@@ -800,7 +800,7 @@ int BackgammonState::GetToPos(int player, int from_pos, int pips) const {
 }
 
 // Basic from_to check (including bar checkers).
-bool BackgammonState::IsLegalFromTo(int player, int from_pos, int to_pos,
+bool CrownyState::IsLegalFromTo(int player, int from_pos, int to_pos,
                                     int my_checkers_from,
                                     int opp_checkers_to) const {
   // Must have at least one checker the from position.
@@ -848,7 +848,7 @@ bool BackgammonState::IsLegalFromTo(int player, int from_pos, int to_pos,
   return true;
 }
 
-std::string BackgammonState::DiceToString(int outcome) const {
+std::string CrownyState::DiceToString(int outcome) const {
   if (outcome > 6) {
     return std::to_string(outcome - 6) + "u";
   } else {
@@ -856,7 +856,7 @@ std::string BackgammonState::DiceToString(int outcome) const {
   }
 }
 
-int BackgammonState::CountTotalCheckers(int player) const {
+int CrownyState::CountTotalCheckers(int player) const {
   int total = 0;
   for (int i = 0; i < 24; ++i) {
     SPIEL_CHECK_GE(board_[player][i], 0);
@@ -869,7 +869,7 @@ int BackgammonState::CountTotalCheckers(int player) const {
   return total;
 }
 
-int BackgammonState::IsGammoned(int player) const {
+int CrownyState::IsGammoned(int player) const {
   if (hyper_backgammon_) {
     // TODO(author5): remove this when the doubling cube is implemented.
     // In Hyper-backgammon, gammons and backgammons only multiply when the cube
@@ -881,7 +881,7 @@ int BackgammonState::IsGammoned(int player) const {
   return scores_[player] == 0;
 }
 
-int BackgammonState::IsBackgammoned(int player) const {
+int CrownyState::IsBackgammoned(int player) const {
   if (hyper_backgammon_) {
     // TODO(author5): remove this when the doubling cube is implemented.
     // In Hyper-backgammon, gammons and backgammons only multiply when the cube
@@ -913,7 +913,7 @@ int BackgammonState::IsBackgammoned(int player) const {
   return false;
 }
 
-std::set<CheckerMove> BackgammonState::LegalCheckerMoves(int player) const {
+std::set<CheckerMove> CrownyState::LegalCheckerMoves(int player) const {
   std::set<CheckerMove> moves;
 
   if (bar_[player] > 0) {
@@ -965,7 +965,7 @@ std::set<CheckerMove> BackgammonState::LegalCheckerMoves(int player) const {
   return moves;
 }
 
-bool BackgammonState::ApplyCheckerMove(int player, const CheckerMove& move) {
+bool CrownyState::ApplyCheckerMove(int player, const CheckerMove& move) {
   // Pass does nothing.
   if (move.pos < 0) {
     return false;
@@ -1013,7 +1013,7 @@ bool BackgammonState::ApplyCheckerMove(int player, const CheckerMove& move) {
 // Undoes a checker move. Important note: this checkermove needs to have
 // move.hit set from the history to properly undo a move (this information is
 // not tracked in the action value).
-void BackgammonState::UndoCheckerMove(int player, const CheckerMove& move) {
+void CrownyState::UndoCheckerMove(int player, const CheckerMove& move) {
   // Undoing a pass does nothing
   if (move.pos < 0) {
     return;
@@ -1058,7 +1058,7 @@ void BackgammonState::UndoCheckerMove(int player, const CheckerMove& move) {
 }
 
 // Returns the maximum move size (2, 1, or 0)
-int BackgammonState::RecLegalMoves(
+int CrownyState::RecLegalMoves(
     std::vector<CheckerMove> moveseq,
     std::set<std::vector<CheckerMove>>* movelist) {
   if (moveseq.size() == 2) {
@@ -1086,7 +1086,7 @@ int BackgammonState::RecLegalMoves(
   return max_moves;
 }
 
-std::vector<Action> BackgammonState::ProcessLegalMoves(
+std::vector<Action> CrownyState::ProcessLegalMoves(
     int max_moves, const std::set<std::vector<CheckerMove>>& movelist) const {
   if (max_moves == 0) {
     SPIEL_CHECK_EQ(movelist.size(), 1);
@@ -1131,7 +1131,7 @@ std::vector<Action> BackgammonState::ProcessLegalMoves(
   return legal_actions;
 }
 
-std::vector<Action> BackgammonState::LegalActions() const {
+std::vector<Action> CrownyState::LegalActions() const {
   if (IsChanceNode()) return LegalChanceOutcomes();
   if (IsTerminal()) return {};
 
@@ -1141,7 +1141,7 @@ std::vector<Action> BackgammonState::LegalActions() const {
                  NumCheckersPerPlayer(game_.get()));
 
   std::unique_ptr<State> cstate = this->Clone();
-  BackgammonState* state = dynamic_cast<BackgammonState*>(cstate.get());
+  CrownyState* state = dynamic_cast<CrownyState*>(cstate.get());
   std::set<std::vector<CheckerMove>> movelist;
   int max_moves = state->RecLegalMoves({}, &movelist);
   SPIEL_CHECK_GE(max_moves, 0);
@@ -1151,7 +1151,7 @@ std::vector<Action> BackgammonState::LegalActions() const {
   return legal_actions;
 }
 
-std::vector<std::pair<Action, double>> BackgammonState::ChanceOutcomes() const {
+std::vector<std::pair<Action, double>> CrownyState::ChanceOutcomes() const {
   SPIEL_CHECK_TRUE(IsChanceNode());
   if (turns_ == -1) {
     // Doubles not allowed for the initial roll to determine who goes first.
@@ -1169,7 +1169,7 @@ std::vector<std::pair<Action, double>> BackgammonState::ChanceOutcomes() const {
   }
 }
 
-std::string BackgammonState::ToString() const {
+std::string CrownyState::ToString() const {
   std::vector<std::string> board_array = {
       "+------|------+", "|......|......|", "|......|......|",
       "|......|......|", "|......|......|", "|......|......|",
@@ -1236,12 +1236,12 @@ std::string BackgammonState::ToString() const {
   return board_str;
 }
 
-bool BackgammonState::IsTerminal() const {
+bool CrownyState::IsTerminal() const {
   return (scores_[kXPlayerId] == NumCheckersPerPlayer(game_.get()) ||
           scores_[kOPlayerId] == NumCheckersPerPlayer(game_.get()));
 }
 
-std::vector<double> BackgammonState::Returns() const {
+std::vector<double> CrownyState::Returns() const {
   int winner = -1;
   int loser = -1;
   if (scores_[kXPlayerId] == 15) {
@@ -1276,11 +1276,11 @@ std::vector<double> BackgammonState::Returns() const {
   return returns;
 }
 
-std::unique_ptr<State> BackgammonState::Clone() const {
-  return std::unique_ptr<State>(new BackgammonState(*this));
+std::unique_ptr<State> CrownyState::Clone() const {
+  return std::unique_ptr<State>(new CrownyState(*this));
 }
 
-void BackgammonState::SetState(int cur_player, bool double_turn,
+void CrownyState::SetState(int cur_player, bool double_turn,
                                const std::vector<int>& dice,
                                const std::vector<int>& bar,
                                const std::vector<int>& scores,
@@ -1298,13 +1298,13 @@ void BackgammonState::SetState(int cur_player, bool double_turn,
                  NumCheckersPerPlayer(game_.get()));
 }
 
-BackgammonGame::BackgammonGame(const GameParameters& params)
+CrownyGame::CrownyGame(const GameParameters& params)
     : Game(kGameType, params),
       scoring_type_(
           ParseScoringType(ParameterValue<std::string>("scoring_type"))),
       hyper_backgammon_(ParameterValue<bool>("hyper_backgammon")) {}
 
-double BackgammonGame::MaxUtility() const {
+double CrownyGame::MaxUtility() const {
   if (hyper_backgammon_) {
     // We do not have the cube implemented, so Hyper-backgammon us currently
     // restricted to a win-loss game regardless of the scoring type.
@@ -1323,7 +1323,7 @@ double BackgammonGame::MaxUtility() const {
   }
 }
 
-int BackgammonGame::NumCheckersPerPlayer() const {
+int CrownyGame::NumCheckersPerPlayer() const {
   if (hyper_backgammon_) {
     return 3;
   } else {
@@ -1331,5 +1331,5 @@ int BackgammonGame::NumCheckersPerPlayer() const {
   }
 }
 
-}  // namespace backgammon
+}  // namespace crowny
 }  // namespace open_spiel

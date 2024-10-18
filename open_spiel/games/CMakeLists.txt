@@ -49,6 +49,8 @@ set(GAME_SOURCES
   coordinated_mp/coordinated_mp.h
   crazy_eights/crazy_eights.cc
   crazy_eights/crazy_eights.h
+  crowny/crowny.cc
+  crowny/crowny.h
   cursor_go/cursor_go.cc
   cursor_go/cursor_go.h
   dark_chess/dark_chess.cc
@@ -376,6 +378,10 @@ add_test(crowd_modelling_test crowd_modelling_test)
 add_executable(crowd_modelling_2d_test mfg/crowd_modelling_2d_test.cc ${OPEN_SPIEL_OBJECTS}
                $<TARGET_OBJECTS:tests>)
 add_test(crowd_modelling_2d_test crowd_modelling_2d_test)
+
+add_executable(crowny_test crowny/crowny_test.cc ${OPEN_SPIEL_OBJECTS}
+               $<TARGET_OBJECTS:tests>)
+add_test(crowny_test crowny_test)
 
 add_executable(cursor_go_test cursor_go/cursor_go_test.cc
                ${OPEN_SPIEL_OBJECTS}

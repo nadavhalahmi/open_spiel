@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef OPEN_SPIEL_GAMES_BACKGAMMON_H_
-#define OPEN_SPIEL_GAMES_BACKGAMMON_H_
+#ifndef OPEN_SPIEL_GAMES_CROWNY_H_
+#define OPEN_SPIEL_GAMES_CROWNY_H_
 
 #include <array>
 #include <memory>
@@ -41,7 +41,7 @@
 // it is not the full Hyper-backgammon sinc do not have cube is not implemented.
 
 namespace open_spiel {
-namespace backgammon {
+namespace crowny {
 
 inline constexpr const int kNumPlayers = 2;
 inline constexpr const int kNumChanceOutcomes = 21;
@@ -52,7 +52,7 @@ inline constexpr const int kOPlayerId = 1;
 inline constexpr const int kPassPos = -1;
 
 // Number of checkers per player in the standard game. For varaints, use
-// BackgammonGame::NumCheckersPerPlayer.
+// CrownyGame::NumCheckersPerPlayer.
 inline constexpr const int kNumCheckersPerPlayer = 15;
 
 // TODO: look into whether these can be set to 25 and -2 to avoid having a
@@ -116,12 +116,12 @@ struct TurnHistoryInfo {
         second_move_hit(smh) {}
 };
 
-class BackgammonGame;
+class CrownyGame;
 
-class BackgammonState : public State {
+class CrownyState : public State {
  public:
-  BackgammonState(const BackgammonState&) = default;
-  BackgammonState(std::shared_ptr<const Game>, ScoringType scoring_type,
+  CrownyState(const CrownyState&) = default;
+  CrownyState(std::shared_ptr<const Game>, ScoringType scoring_type,
                   bool hyper_backgammone);
 
   Player CurrentPlayer() const override;
@@ -259,14 +259,14 @@ class BackgammonState : public State {
   std::vector<TurnHistoryInfo> turn_history_info_;  // Info needed for Undo.
 };
 
-class BackgammonGame : public Game {
+class CrownyGame : public Game {
  public:
-  explicit BackgammonGame(const GameParameters& params);
+  explicit CrownyGame(const GameParameters& params);
 
   int NumDistinctActions() const override { return kNumDistinctActions; }
 
   std::unique_ptr<State> NewInitialState() const override {
-    return std::unique_ptr<State>(new BackgammonState(
+    return std::unique_ptr<State>(new CrownyState(
         shared_from_this(), scoring_type_, hyper_backgammon_));
   }
 
@@ -316,7 +316,7 @@ class BackgammonGame : public Game {
   bool hyper_backgammon_;     // Is hyper-backgammon variant enabled?
 };
 
-}  // namespace backgammon
+}  // namespace crowny
 }  // namespace open_spiel
 
-#endif  // OPEN_SPIEL_GAMES_BACKGAMMON_H_
+#endif  // OPEN_SPIEL_GAMES_CROWNY_H_

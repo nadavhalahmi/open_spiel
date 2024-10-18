@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "open_spiel/games/backgammon/backgammon.h"
+#include "open_spiel/games/crowny/crowny.h"
 
 #include <algorithm>
 #include <random>
@@ -21,7 +21,7 @@
 #include "open_spiel/tests/basic_tests.h"
 
 namespace open_spiel {
-namespace backgammon {
+namespace crowny {
 namespace {
 
 namespace testing = open_spiel::testing;
@@ -36,7 +36,7 @@ void CheckHits(const State &state) {
     return;
   }
   Player player = state.CurrentPlayer();
-  const auto &bstate = down_cast<const BackgammonState &>(state);
+  const auto &bstate = down_cast<const CrownyState &>(state);
   for (Action action : bstate.LegalActions()) {
     std::vector<CheckerMove> cmoves = bstate.AugmentWithHitInfo(
         player, bstate.SpielMoveToCheckerMoves(player, action));
@@ -104,8 +104,8 @@ void BasicBackgammonTestsDoNotStartWithDoubles() {
               .first;
       state->ApplyAction(outcome);
     }
-    BackgammonState* backgammon_state =
-        dynamic_cast<BackgammonState*>(state.get());
+    CrownyState* backgammon_state =
+        dynamic_cast<CrownyState*>(state.get());
     // The dice should contain two different numbers,
     // because a tie would not select a starting player.
     SPIEL_CHECK_NE(backgammon_state->dice(0), backgammon_state->dice(1));
@@ -135,7 +135,7 @@ void BasicBackgammonTestsDoNotStartWithDoubles() {
 void BearOffFurthestFirstTest() {
   std::shared_ptr<const Game> game = LoadGame("backgammon");
   std::unique_ptr<State> state = game->NewInitialState();
-  BackgammonState* bstate = static_cast<BackgammonState*>(state.get());
+  CrownyState* bstate = static_cast<CrownyState*>(state.get());
   bstate->SetState(
       kOPlayerId, false, {5, 5}, {0, 0}, {0, 12},
       {{0, 0, 0, 0, 0, 2, 0, 0, 0, 1, 0, 0, 0, 0, 1, 2, 0, 0, 0, 0, 1, 6, 2, 0},
@@ -148,7 +148,7 @@ void BearOffFurthestFirstTest() {
   SPIEL_CHECK_EQ(legal_actions.size(), 1);
 
   // Check that it's 1-5 0-5
-  std::vector<open_spiel::backgammon::CheckerMove> checker_moves =
+  std::vector<open_spiel::crowny::CheckerMove> checker_moves =
       bstate->SpielMoveToCheckerMoves(kOPlayerId, legal_actions[0]);
   SPIEL_CHECK_EQ(checker_moves[0].pos, 1);
   SPIEL_CHECK_EQ(checker_moves[0].num, 5);
@@ -176,7 +176,7 @@ void BearOffFurthestFirstTest() {
 void NormalBearOffSituation() {
   std::shared_ptr<const Game> game = LoadGame("backgammon");
   std::unique_ptr<State> state = game->NewInitialState();
-  BackgammonState* bstate = static_cast<BackgammonState*>(state.get());
+  CrownyState* bstate = static_cast<CrownyState*>(state.get());
   bstate->SetState(
       kXPlayerId, false, {1, 6}, {0, 0}, {0, 8},
       {{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 2, 2, 1, 9},
@@ -250,7 +250,7 @@ void NormalBearOffSituation() {
 void NormalBearOffSituation2() {
   std::shared_ptr<const Game> game = LoadGame("backgammon");
   std::unique_ptr<State> state = game->NewInitialState();
-  BackgammonState* bstate = static_cast<BackgammonState*>(state.get());
+  CrownyState* bstate = static_cast<CrownyState*>(state.get());
   bstate->SetState(
       kXPlayerId, false, {4, 4}, {0, 0}, {0, 0},
       {{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 3, 2, 9, 0},
@@ -300,7 +300,7 @@ void NormalBearOffSituation2() {
 void BearOffOutsideHome() {
   std::shared_ptr<const Game> game = LoadGame("backgammon");
   std::unique_ptr<State> state = game->NewInitialState();
-  BackgammonState* bstate = static_cast<BackgammonState*>(state.get());
+  CrownyState* bstate = static_cast<CrownyState*>(state.get());
   bstate->SetState(
       kXPlayerId, false, {1, 6}, {0, 0}, {0, 0},
       {{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 2, 2, 9, 0},
@@ -343,7 +343,7 @@ void BearOffOutsideHome() {
 void DoublesBearOffOutsideHome() {
   std::shared_ptr<const Game> game = LoadGame("backgammon");
   std::unique_ptr<State> state = game->NewInitialState();
-  BackgammonState* bstate = static_cast<BackgammonState*>(state.get());
+  CrownyState* bstate = static_cast<CrownyState*>(state.get());
   bstate->SetState(
       kXPlayerId, false, {4, 4}, {0, 0}, {0, 0},
       {{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 0, 3, 2, 3, 3, 0, 2},
@@ -386,7 +386,7 @@ void DoublesBearOffOutsideHome() {
 void HumanReadableNotation() {
   std::shared_ptr<const Game> game = LoadGame("backgammon");
   std::unique_ptr<State> state = game->NewInitialState();
-  BackgammonState* bstate = static_cast<BackgammonState*>(state.get());
+  CrownyState* bstate = static_cast<CrownyState*>(state.get());
 
   // Check double repeated move and moving on from Bar displayed correctly
   bstate->SetState(
@@ -576,26 +576,26 @@ void BasicHyperBackgammonTest() {
   std::shared_ptr<const Game> game =
       LoadGame("backgammon", {{"hyper_backgammon", GameParameter(true)}});
   std::unique_ptr<State> state = game->NewInitialState();
-  BackgammonState* bstate = static_cast<BackgammonState*>(state.get());
+  CrownyState* bstate = static_cast<CrownyState*>(state.get());
   SPIEL_CHECK_EQ(bstate->CountTotalCheckers(kXPlayerId), 3);
   SPIEL_CHECK_EQ(bstate->CountTotalCheckers(kOPlayerId), 3);
 }
 
 }  // namespace
-}  // namespace backgammon
+}  // namespace crowny
 }  // namespace open_spiel
 
 int main(int argc, char** argv) {
   open_spiel::testing::LoadGameTest("backgammon");
-  open_spiel::backgammon::BasicBackgammonTestsCheckHits();
-  open_spiel::backgammon::BasicBackgammonTestsDoNotStartWithDoubles();
-  open_spiel::backgammon::BasicBackgammonTestsVaryScoring();
-  open_spiel::backgammon::BasicHyperBackgammonTestsVaryScoring();
-  open_spiel::backgammon::BearOffFurthestFirstTest();
-  open_spiel::backgammon::NormalBearOffSituation();
-  open_spiel::backgammon::NormalBearOffSituation2();
-  open_spiel::backgammon::BearOffOutsideHome();
-  open_spiel::backgammon::DoublesBearOffOutsideHome();
-  open_spiel::backgammon::HumanReadableNotation();
-  open_spiel::backgammon::BasicHyperBackgammonTest();
+  open_spiel::crowny::BasicBackgammonTestsCheckHits();
+  open_spiel::crowny::BasicBackgammonTestsDoNotStartWithDoubles();
+  open_spiel::crowny::BasicBackgammonTestsVaryScoring();
+  open_spiel::crowny::BasicHyperBackgammonTestsVaryScoring();
+  open_spiel::crowny::BearOffFurthestFirstTest();
+  open_spiel::crowny::NormalBearOffSituation();
+  open_spiel::crowny::NormalBearOffSituation2();
+  open_spiel::crowny::BearOffOutsideHome();
+  open_spiel::crowny::DoublesBearOffOutsideHome();
+  open_spiel::crowny::HumanReadableNotation();
+  open_spiel::crowny::BasicHyperBackgammonTest();
 }
