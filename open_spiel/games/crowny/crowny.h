@@ -49,7 +49,6 @@ inline constexpr const int kNumPoints = 24;
 inline constexpr const int kNumDiceOutcomes = 6;
 inline constexpr const int kXPlayerId = 0;
 inline constexpr const int kOPlayerId = 1;
-inline constexpr const int kPassPos = -1;
 
 // Number of checkers per player in the standard game. For varaints, use
 // CrownyGame::NumCheckersPerPlayer.
@@ -58,7 +57,6 @@ inline constexpr const int kNumCheckersPerPlayer = 15;
 // TODO: look into whether these can be set to 25 and -2 to avoid having a
 // separate helper function (PositionToStringHumanReadable) to convert moves
 // to strings.
-inline constexpr const int kBarPos = 100;
 inline constexpr const int kScorePos = 101;
 
 // The action encoding stores a number in { 0, 1, ..., 1351 }. If the high
@@ -73,47 +71,50 @@ inline constexpr const int kBoardEncodingSize = 4 * kNumPoints * kNumPlayers;
 inline constexpr const int kStateEncodingSize =
     3 * kNumPlayers + kBoardEncodingSize + 2;
 inline constexpr const char* kDefaultScoringType = "winloss_scoring";
-inline constexpr bool kDefaultHyperBackgammon = false;
 
 // Game scoring type, whether to score gammons/backgammons specially.
 enum class ScoringType {
   kWinLossScoring,  // "winloss_scoring": Score only 1 point per player win.
-  kEnableGammons,   // "enable_gammons": Score 2 points for a "gammon".
   kFullScoring,     // "full_scoring": Score gammons as well as 3 points for a
                     // "backgammon".
 };
 
 struct CheckerMove {
-  // Pass is encoded as (pos, num, hit) = (-1, -1, false).
-  int pos;  // 0-24  (0-23 for locations on the board and kBarPos)
-  int num;  // 1-6
-  bool hit;
-  CheckerMove(int _pos, int _num, bool _hit)
-      : pos(_pos), num(_num), hit(_hit) {}
+  std::pair<int, int> from;  // 0-24  (0-23 for locations on the board and kBarPos)
+  std::pair<int, int> to;  // 0-24  (0-23 for locations on the board and kBarPos)
+  CheckerMove(std::pair<int, int> _from, std::pair<int, int> _to)
+      : from(_from), to(_to) {}
   bool operator<(const CheckerMove& rhs) const {
-    return (pos * 6 + (num - 1)) < (rhs.pos * 6 + rhs.num - 1);
-  }
+        if (this->from.first != rhs.from.first) return this->from.first < rhs.from.first;
+        if (this->from.second != rhs.from.second) return this->from.second < rhs.from.second;
+        if (this->to.first != rhs.to.first) return this->to.first < rhs.to.first;
+        if (this->to.second != rhs.to.second) return this->to.second < rhs.to.second;
+        return false; // equals
+    }
 };
 
-// This is a small helper to track historical turn info not stored in the moves.
-// It is only needed for proper implementation of Undo.
-struct TurnHistoryInfo {
-  int player;
-  int prev_player;
-  std::vector<int> dice;
-  Action action;
-  bool double_turn;
-  bool first_move_hit;
-  bool second_move_hit;
-  TurnHistoryInfo(int _player, int _prev_player, std::vector<int> _dice,
-                  int _action, bool _double_turn, bool fmh, bool smh)
-      : player(_player),
-        prev_player(_prev_player),
-        dice(_dice),
-        action(_action),
-        double_turn(_double_turn),
-        first_move_hit(fmh),
-        second_move_hit(smh) {}
+enum class PieceType { ENUM_RED, ENUM_BLUE };
+
+class Piece {
+public:
+    explicit Piece(PieceType type) : type_(type) {}
+private:
+    PieceType type_;
+};
+
+class Pawn : public Piece {
+public:
+    explicit Pawn(PieceType type) : Piece(type) {}
+};
+
+class Archer : public Piece {
+public:
+    explicit Archer(PieceType type) : Piece(type) {}
+};
+
+class King : public Piece {
+public:
+    explicit King(PieceType type) : Piece(type) {}
 };
 
 class CrownyGame;
@@ -121,8 +122,7 @@ class CrownyGame;
 class CrownyState : public State {
  public:
   CrownyState(const CrownyState&) = default;
-  CrownyState(std::shared_ptr<const Game>, ScoringType scoring_type,
-                  bool hyper_backgammone);
+  CrownyState(std::shared_ptr<const Game>, ScoringType scoring_type);
 
   Player CurrentPlayer() const override;
   void UndoAction(Player player, Action action) override;
@@ -142,40 +142,37 @@ class CrownyState : public State {
   // set this way!
   void SetState(int cur_player, bool double_turn, const std::vector<int>& dice,
                 const std::vector<int>& bar, const std::vector<int>& scores,
-                const std::vector<std::vector<int>>& board);
+                const std::vector<std::vector<std::vector<Piece>>>& board);
 
   // Returns the opponent of the specified player.
   int Opponent(int player) const;
 
   // Compute a distance between 'from' and 'to'. The from can be kBarPos. The
   // to can be a number below 0 or above 23, but do not use kScorePos directly.
-  int GetDistance(int player, int from, int to) const;
+
+  int GetDistance(std::pair<int, int> from, std::pair<int, int> to) const;
 
   // Is this position off the board, i.e. >23 or <0?
-  bool IsOff(int player, int pos) const;
+  bool IsOff(std::pair<int, int> pos) const;
 
   // Returns whether pos2 is further (closer to scoring) than pos1 for the
   // specifed player.
-  bool IsFurther(int player, int pos1, int pos2) const;
+  bool IsFurther(int player, std::pair<int, int> pos1, std::pair<int, int> pos2) const;
 
   // Is this a legal from -> to checker move? Here, the to_pos can be a number
   // that is outside {0, ..., 23}; if so, it is counted as "off the board" for
   // the corresponding player (i.e. >23 is a bear-off move for XPlayerId, and
   // <0 is a bear-off move for OPlayerId).
-  bool IsLegalFromTo(int player, int from_pos, int to_pos, int my_checkers_from,
+  bool IsLegalFromTo(int player, std::pair<int,int> from_pos, std::pair<int,int> to_pos, int my_checkers_from,
                      int opp_checkers_to) const;
 
   // Get the To position for this play given the from position and number of
   // pips on the die. This function simply adds the values: the return value
   // will be a position that might be off the the board (<0 or >23).
-  int GetToPos(int player, int from_pos, int pips) const;
-
-  // Count the total number of checkers for this player (on the board, in the
-  // bar, and have borne off). Should be 15 for the standard game.
-  int CountTotalCheckers(int player) const;
+  int GetToPos(int player, std::pair<int,int> from_pos, int pips) const;
 
   // Returns if moving from the position for the number of spaces is a hit.
-  bool IsHit(Player player, int from_pos, int num) const;
+  bool IsHit(Player player, std::pair<int,int> from_pos, int num) const;
 
   // Accessor functions for some of the specific data.
   int player_turns() const { return turns_; }
@@ -191,7 +188,7 @@ class CrownyState : public State {
   // to the specified player. The position can be kBarPos or any valid position
   // on the main part of the board, but kScorePos (use score() to get the number
   // of checkers born off).
-  int board(int player, int pos) const;
+  std::vector<Piece> board(std::pair<int, int> pos) const;
 
   // Action encoding / decoding functions. Note, the converted checker moves
   // do not contain the hit information; use the AddHitInfo function to get the
@@ -199,7 +196,7 @@ class CrownyState : public State {
   Action CheckerMovesToSpielMove(const std::vector<CheckerMove>& moves) const;
   std::vector<CheckerMove> SpielMoveToCheckerMoves(int player,
                                                    Action spiel_move) const;
-  Action TranslateAction(int from1, int from2, bool use_high_die_first) const;
+  Action TranslateAction(std::pair<int, int> from1, std::pair<int, int> from2, bool use_high_die_first) const;
 
   // Return checker moves with extra hit information.
   std::vector<CheckerMove>
@@ -212,30 +209,22 @@ class CrownyState : public State {
  private:
   void SetupInitialBoard();
   void RollDice(int outcome);
-  bool IsPosInHome(int player, int pos) const;
+  bool IsPosInHome(int player, std::pair<int, int> pos) const;
   bool AllInHome(int player) const;
   int CheckersInHome(int player) const;
   bool UsableDiceOutcome(int outcome) const;
-  int PositionFromBar(int player, int spaces) const;
-  int PositionFrom(int player, int pos, int spaces) const;
-  int NumOppCheckers(int player, int pos) const;
+  int NumOppCheckers(int player, std::pair<int, int> pos) const;
   std::string DiceToString(int outcome) const;
-  int IsGammoned(int player) const;
-  int IsBackgammoned(int player) const;
   int DiceValue(int i) const;
   int HighestUsableDiceOutcome() const;
-  Action EncodedPassMove() const;
-  Action EncodedBarMove() const;
 
   // A helper function used by ActionToString to add necessary hit information
   // and compute whether the move goes off the board.
   int AugmentCheckerMove(CheckerMove* cmove, int player, int start) const;
 
-  // Returns the position of the furthest checker in the home of this player.
-  // Returns -1 if none found.
-  int FurthestCheckerInHome(int player) const;
+  std::pair<int, int> PositionFrom(int player, std::pair<int, int> from, std::pair<int, int> to) const;
 
-  bool ApplyCheckerMove(int player, const CheckerMove& move);
+  void ApplyCheckerMove(int player, const CheckerMove &move);
   void UndoCheckerMove(int player, const CheckerMove& move);
   std::set<CheckerMove> LegalCheckerMoves(int player) const;
   int RecLegalMoves(std::vector<CheckerMove> moveseq,
@@ -244,7 +233,6 @@ class CrownyState : public State {
       int max_moves, const std::set<std::vector<CheckerMove>>& movelist) const;
 
   ScoringType scoring_type_;  // Which rules apply when scoring the game.
-  bool hyper_backgammon_;     // Is the Hyper-backgammon variant enabled?
 
   Player cur_player_;
   Player prev_player_;
@@ -255,8 +243,7 @@ class CrownyState : public State {
   std::vector<int> dice_;    // Current dice.
   std::vector<int> bar_;     // Checkers of each player in the bar.
   std::vector<int> scores_;  // Checkers returned home by each player.
-  std::vector<std::vector<int>> board_;  // Checkers for each player on points.
-  std::vector<TurnHistoryInfo> turn_history_info_;  // Info needed for Undo.
+  std::vector<std::vector<std::vector<Piece>>> board_;  // Checkers for each player on points.
 };
 
 class CrownyGame : public Game {
@@ -267,7 +254,7 @@ class CrownyGame : public Game {
 
   std::unique_ptr<State> NewInitialState() const override {
     return std::unique_ptr<State>(new CrownyState(
-        shared_from_this(), scoring_type_, hyper_backgammon_));
+        shared_from_this(), scoring_type_));
   }
 
   // On the first turn there are 30 outcomes: 15 for each player (rolls without
@@ -313,7 +300,6 @@ class CrownyGame : public Game {
 
  private:
   ScoringType scoring_type_;  // Which rules apply when scoring the game.
-  bool hyper_backgammon_;     // Is hyper-backgammon variant enabled?
 };
 
 }  // namespace crowny

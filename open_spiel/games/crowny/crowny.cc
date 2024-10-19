@@ -12,8 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "open_spiel/games/crowny/crowny.h"
-
 #include <algorithm>
 #include <cstdlib>
 #include <set>
@@ -24,6 +22,7 @@
 #include "open_spiel/game_parameters.h"
 #include "open_spiel/spiel.h"
 #include "open_spiel/spiel_utils.h"
+#include "open_spiel/games/crowny/crowny.h"
 
 namespace open_spiel {
 namespace crowny {
@@ -32,8 +31,6 @@ namespace {
 // A few constants to help with the conversion to human-readable string formats.
 // TODO: remove these once we've changed kBarPos and kScorePos (see TODO in
 // header).
-constexpr int kNumBarPosHumanReadable = 25;
-constexpr int kNumOffPosHumanReadable = -2;
 constexpr int kNumNonDoubleOutcomes = 15;
 
 const std::vector<std::pair<Action, double>> kChanceOutcomes = {
@@ -85,8 +82,7 @@ const GameType kGameType{
     /*provides_observation_string=*/true,
     /*provides_observation_tensor=*/true,
     /*parameter_specification=*/
-    {{"hyper_backgammon", GameParameter(kDefaultHyperBackgammon)},
-     {"scoring_type",
+    {{"scoring_type",
       GameParameter(static_cast<std::string>(kDefaultScoringType))}}};
 
 static std::shared_ptr<const Game> Factory(const GameParameters& params) {
@@ -101,8 +97,6 @@ RegisterSingleTensorObserver single_tensor(kGameType.short_name);
 ScoringType ParseScoringType(const std::string& st_str) {
   if (st_str == "winloss_scoring") {
     return ScoringType::kWinLossScoring;
-  } else if (st_str == "enable_gammons") {
-    return ScoringType::kEnableGammons;
   } else if (st_str == "full_scoring") {
     return ScoringType::kFullScoring;
   } else {
@@ -110,17 +104,8 @@ ScoringType ParseScoringType(const std::string& st_str) {
   }
 }
 
-std::string PositionToString(int pos) {
-  switch (pos) {
-    case kBarPos:
-      return "Bar";
-    case kScorePos:
-      return "Score";
-    case -1:
-      return "Pass";
-    default:
-      return absl::StrCat(pos);
-  }
+std::string PositionToString(std::pair<int, int> pos) {
+      return absl::StrCat(pos.first) + absl::StrCat(pos.second);
 }
 
 std::string CurPlayerToString(Player cur_player) {
@@ -138,157 +123,144 @@ std::string CurPlayerToString(Player cur_player) {
   }
 }
 
-std::string PositionToStringHumanReadable(int pos) {
-  if (pos == kNumBarPosHumanReadable) {
-    return "Bar";
-  } else if (pos == kNumOffPosHumanReadable) {
-    return "Off";
-  } else {
+std::string PositionToStringHumanReadable(std::pair<int, int> pos) {
     return PositionToString(pos);
-  }
 }
 
-int CrownyState::AugmentCheckerMove(CheckerMove* cmove, int player,
-                                        int start) const {
-  int end = cmove->num;
-  if (end != kPassPos) {
-    // Not a pass, so work out where the piece finished
-    end = start - cmove->num;
-    if (end <= 0) {
-      end = kNumOffPosHumanReadable;  // Off
-    } else if (board_[Opponent(player)]
-                     [player == kOPlayerId ? (end - 1) : (kNumPoints - end)] ==
-               1) {
-      cmove->hit = true;  // Check to see if move is a hit
-    }
-  }
-  return end;
-}
+// int CrownyState::AugmentCheckerMove(CheckerMove* cmove, int player,
+//                                         int start) const {
+//   int end = cmove->num;
+//   if (end != kPassPos) {
+//     // Not a pass, so work out where the piece finished
+//     end = start - cmove->num;
+//     if (end <= 0) {
+//       end = kNumOffPosHumanReadable;  // Off
+//     } else if (board_[Opponent(player)]
+//                      [player == kOPlayerId ? (end - 1) : (kNumPoints - end)] ==
+//                1) {
+//       cmove->hit = true;  // Check to see if move is a hit
+//     }
+//   }
+//   return end;
+// }
 
 std::string CrownyState::ActionToString(Player player,
                                             Action move_id) const {
-  if (player == kChancePlayerId) {
-    if (turns_ >= 0) {
-      // Normal chance roll.
-      return absl::StrCat("chance outcome ", move_id,
-                          " (roll: ", kChanceOutcomeValues[move_id][0],
-                          kChanceOutcomeValues[move_id][1], ")");
-    } else {
-      // Initial roll to determine who starts.
-      const char* starter = (move_id < kNumNonDoubleOutcomes ?
-                             "X starts" : "O starts");
-      if (move_id >= kNumNonDoubleOutcomes) {
-        move_id -= kNumNonDoubleOutcomes;
-      }
-      return absl::StrCat("chance outcome ", move_id, " ", starter, ", ",
-                          "(roll: ", kChanceOutcomeValues[move_id][0],
-                          kChanceOutcomeValues[move_id][1], ")");
-    }
-  } else {
-    // Assemble a human-readable string representation of the move using
-    // standard backgammon notation:
-    //
-    // - Always show the numbering going from Bar->24->0->Off, irrespective of
-    //   which player is moving.
-    // - Show the start position followed by end position.
-    // - Show hits with an asterisk, e.g. 9/7*.
-    // - Order the moves by highest number first, e.g. 22/7 10/8 not 10/8 22/7.
-    //   Not an official requirement, but seems to be standard convention.
-    // - Show duplicate moves as 10/8(2).
-    // - Show moves on a single piece as 10/8/5 not 10/8 8/5
-    //
-    // Note that there are tests to ensure the ActionToString follows this
-    // output format. Any changes would need to be reflected in the tests as
-    // well.
-    std::vector<CheckerMove> cmoves = SpielMoveToCheckerMoves(player, move_id);
+                                                //TODO: implement
+//   if (player == kChancePlayerId) {
+//     if (turns_ >= 0) {
+//       // Normal chance roll.
+//       return absl::StrCat("chance outcome ", move_id,
+//                           " (roll: ", kChanceOutcomeValues[move_id][0],
+//                           kChanceOutcomeValues[move_id][1], ")");
+//     } else {
+//       // Initial roll to determine who starts.
+//       const char* starter = (move_id < kNumNonDoubleOutcomes ?
+//                              "X starts" : "O starts");
+//       if (move_id >= kNumNonDoubleOutcomes) {
+//         move_id -= kNumNonDoubleOutcomes;
+//       }
+//       return absl::StrCat("chance outcome ", move_id, " ", starter, ", ",
+//                           "(roll: ", kChanceOutcomeValues[move_id][0],
+//                           kChanceOutcomeValues[move_id][1], ")");
+//     }
+//   } else {
+//     // Assemble a human-readable string representation of the move using
+//     // standard backgammon notation:
+//     //
+//     // - Always show the numbering going from Bar->24->0->Off, irrespective of
+//     //   which player is moving.
+//     // - Show the start position followed by end position.
+//     // - Show hits with an asterisk, e.g. 9/7*.
+//     // - Order the moves by highest number first, e.g. 22/7 10/8 not 10/8 22/7.
+//     //   Not an official requirement, but seems to be standard convention.
+//     // - Show duplicate moves as 10/8(2).
+//     // - Show moves on a single piece as 10/8/5 not 10/8 8/5
+//     //
+//     // Note that there are tests to ensure the ActionToString follows this
+//     // output format. Any changes would need to be reflected in the tests as
+//     // well.
+//     std::vector<CheckerMove> cmoves = SpielMoveToCheckerMoves(player, move_id);
 
-    int cmove0_start;
-    int cmove1_start;
-    if (player == kOPlayerId) {
-      cmove0_start = (cmoves[0].pos == kBarPos ? kNumBarPosHumanReadable
-                                               : cmoves[0].pos + 1);
-      cmove1_start = (cmoves[1].pos == kBarPos ? kNumBarPosHumanReadable
-                                               : cmoves[1].pos + 1);
-    } else {
-      // swap the board numbering round for Player X so player is moving
-      // from 24->0
-      cmove0_start = (cmoves[0].pos == kBarPos ? kNumBarPosHumanReadable
-                                               : kNumPoints - cmoves[0].pos);
-      cmove1_start = (cmoves[1].pos == kBarPos ? kNumBarPosHumanReadable
-                                               : kNumPoints - cmoves[1].pos);
-    }
+//     int cmove0_start;
+//     int cmove1_start;
+//     if (player == kOPlayerId) {
+//       cmove0_start = cmoves[0].pos + 1;
+//       cmove1_start = cmoves[1].pos + 1;
+//     } else {
+//       // swap the board numbering round for Player X so player is moving
+//       // from 24->0
+//       cmove0_start = kNumPoints - cmoves[0].pos;
+//       cmove1_start = kNumPoints - cmoves[1].pos;
+//     }
 
-    // Add hit information and compute whether the moves go off the board.
-    int cmove0_end = AugmentCheckerMove(&cmoves[0], player, cmove0_start);
-    int cmove1_end = AugmentCheckerMove(&cmoves[1], player, cmove1_start);
+//     // Add hit information and compute whether the moves go off the board.
+//     int cmove0_end = AugmentCheckerMove(&cmoves[0], player, cmove0_start);
+//     int cmove1_end = AugmentCheckerMove(&cmoves[1], player, cmove1_start);
 
-    // check for 2 pieces hitting on the same point.
-    bool double_hit =
-        (cmoves[1].hit && cmoves[0].hit && cmove1_end == cmove0_end);
+//     std::string returnVal = "";
+//     if (cmove0_start == cmove1_start &&
+//         cmove0_end == cmove1_end) {     // same move, show as (2).
+//       if (cmoves[1].num == kPassPos) {  // Player can't move at all!
+//         returnVal = "Pass";
+//       } else {
+//         returnVal = absl::StrCat(move_id, " - ",
+//                                  PositionToStringHumanReadable(cmove0_start),
+//                                  "/", PositionToStringHumanReadable(cmove0_end),
+//                                  cmoves[0].hit ? "*" : "", "(2)");
+//       }
+//     } else if ((cmove0_start < cmove1_start ||
+//                 (cmove0_start == cmove1_start && cmove0_end < cmove1_end) ||
+//                 cmoves[0].num == kPassPos) &&
+//                cmoves[1].num != kPassPos) {
+//       // tradition to start with higher numbers first,
+//       // so swap moves round if this not the case. If
+//       // there is a pass move, put it last.
+//       if (cmove1_end == cmove0_start) {
+//         // Check to see if the same piece is moving for both
+//         // moves, as this changes the format of the output.
+//         returnVal = absl::StrCat(
+//             move_id, " - ", PositionToStringHumanReadable(cmove1_start), "/",
+//             PositionToStringHumanReadable(cmove1_end), cmoves[1].hit ? "*" : "",
+//             "/", PositionToStringHumanReadable(cmove0_end),
+//             cmoves[0].hit ? "*" : "");
+//       } else {
+//         returnVal = absl::StrCat(
+//             move_id, " - ", PositionToStringHumanReadable(cmove1_start), "/",
+//             PositionToStringHumanReadable(cmove1_end), cmoves[1].hit ? "*" : "",
+//             " ",
+//             (cmoves[0].num != kPassPos)
+//                 ? PositionToStringHumanReadable(cmove0_start)
+//                 : "",
+//             (cmoves[0].num != kPassPos) ? "/" : "",
+//             PositionToStringHumanReadable(cmove0_end),
+//             (cmoves[0].hit && !double_hit) ? "*" : "");
+//       }
+//     } else {
+//       if (cmove0_end == cmove1_start) {
+//         // Check to see if the same piece is moving for both
+//         // moves, as this changes the format of the output.
+//         returnVal = absl::StrCat(
+//             move_id, " - ", PositionToStringHumanReadable(cmove0_start), "/",
+//             PositionToStringHumanReadable(cmove0_end), cmoves[0].hit ? "*" : "",
+//             "/", PositionToStringHumanReadable(cmove1_end),
+//             cmoves[1].hit ? "*" : "");
+//       } else {
+//         returnVal = absl::StrCat(
+//             move_id, " - ", PositionToStringHumanReadable(cmove0_start), "/",
+//             PositionToStringHumanReadable(cmove0_end), cmoves[0].hit ? "*" : "",
+//             " ",
+//             (cmoves[1].num != kPassPos)
+//                 ? PositionToStringHumanReadable(cmove1_start)
+//                 : "",
+//             (cmoves[1].num != kPassPos) ? "/" : "",
+//             PositionToStringHumanReadable(cmove1_end),
+//             (cmoves[1].hit && !double_hit) ? "*" : "");
+//       }
+//     }
 
-    std::string returnVal = "";
-    if (cmove0_start == cmove1_start &&
-        cmove0_end == cmove1_end) {     // same move, show as (2).
-      if (cmoves[1].num == kPassPos) {  // Player can't move at all!
-        returnVal = "Pass";
-      } else {
-        returnVal = absl::StrCat(move_id, " - ",
-                                 PositionToStringHumanReadable(cmove0_start),
-                                 "/", PositionToStringHumanReadable(cmove0_end),
-                                 cmoves[0].hit ? "*" : "", "(2)");
-      }
-    } else if ((cmove0_start < cmove1_start ||
-                (cmove0_start == cmove1_start && cmove0_end < cmove1_end) ||
-                cmoves[0].num == kPassPos) &&
-               cmoves[1].num != kPassPos) {
-      // tradition to start with higher numbers first,
-      // so swap moves round if this not the case. If
-      // there is a pass move, put it last.
-      if (cmove1_end == cmove0_start) {
-        // Check to see if the same piece is moving for both
-        // moves, as this changes the format of the output.
-        returnVal = absl::StrCat(
-            move_id, " - ", PositionToStringHumanReadable(cmove1_start), "/",
-            PositionToStringHumanReadable(cmove1_end), cmoves[1].hit ? "*" : "",
-            "/", PositionToStringHumanReadable(cmove0_end),
-            cmoves[0].hit ? "*" : "");
-      } else {
-        returnVal = absl::StrCat(
-            move_id, " - ", PositionToStringHumanReadable(cmove1_start), "/",
-            PositionToStringHumanReadable(cmove1_end), cmoves[1].hit ? "*" : "",
-            " ",
-            (cmoves[0].num != kPassPos)
-                ? PositionToStringHumanReadable(cmove0_start)
-                : "",
-            (cmoves[0].num != kPassPos) ? "/" : "",
-            PositionToStringHumanReadable(cmove0_end),
-            (cmoves[0].hit && !double_hit) ? "*" : "");
-      }
-    } else {
-      if (cmove0_end == cmove1_start) {
-        // Check to see if the same piece is moving for both
-        // moves, as this changes the format of the output.
-        returnVal = absl::StrCat(
-            move_id, " - ", PositionToStringHumanReadable(cmove0_start), "/",
-            PositionToStringHumanReadable(cmove0_end), cmoves[0].hit ? "*" : "",
-            "/", PositionToStringHumanReadable(cmove1_end),
-            cmoves[1].hit ? "*" : "");
-      } else {
-        returnVal = absl::StrCat(
-            move_id, " - ", PositionToStringHumanReadable(cmove0_start), "/",
-            PositionToStringHumanReadable(cmove0_end), cmoves[0].hit ? "*" : "",
-            " ",
-            (cmoves[1].num != kPassPos)
-                ? PositionToStringHumanReadable(cmove1_start)
-                : "",
-            (cmoves[1].num != kPassPos) ? "/" : "",
-            PositionToStringHumanReadable(cmove1_end),
-            (cmoves[1].hit && !double_hit) ? "*" : "");
-      }
-    }
-
-    return returnVal;
-  }
+//     return returnVal;
+//   }
 }
 
 std::string CrownyState::ObservationString(Player player) const {
@@ -299,48 +271,47 @@ std::string CrownyState::ObservationString(Player player) const {
 
 void CrownyState::ObservationTensor(Player player,
                                         absl::Span<float> values) const {
-  SPIEL_CHECK_GE(player, 0);
-  SPIEL_CHECK_LT(player, num_players_);
+    //TODO: implement
+//   SPIEL_CHECK_GE(player, 0);
+//   SPIEL_CHECK_LT(player, num_players_);
 
-  int opponent = Opponent(player);
-  SPIEL_CHECK_EQ(values.size(), kStateEncodingSize);
-  auto value_it = values.begin();
-  // The format of this vector is described in Section 3.4 of "G. Tesauro,
-  // Practical issues in temporal-difference learning, 1994."
-  // https://link.springer.com/article/10.1007/BF00992697
-  // The values of the dice are added in the last two positions of the vector.
-  for (int count : board_[player]) {
-    *value_it++ = ((count == 1) ? 1 : 0);
-    *value_it++ = ((count == 2) ? 1 : 0);
-    *value_it++ = ((count == 3) ? 1 : 0);
-    *value_it++ = ((count > 3) ? (count - 3) : 0);
-  }
-  for (int count : board_[opponent]) {
-    *value_it++ = ((count == 1) ? 1 : 0);
-    *value_it++ = ((count == 2) ? 1 : 0);
-    *value_it++ = ((count == 3) ? 1 : 0);
-    *value_it++ = ((count > 3) ? (count - 3) : 0);
-  }
-  *value_it++ = (bar_[player]);
-  *value_it++ = (scores_[player]);
-  *value_it++ = ((cur_player_ == player) ? 1 : 0);
+//   int opponent = Opponent(player);
+//   SPIEL_CHECK_EQ(values.size(), kStateEncodingSize);
+//   auto value_it = values.begin();
+//   // The format of this vector is described in Section 3.4 of "G. Tesauro,
+//   // Practical issues in temporal-difference learning, 1994."
+//   // https://link.springer.com/article/10.1007/BF00992697
+//   // The values of the dice are added in the last two positions of the vector.
+//   for (int count : board_[player]) {
+//     *value_it++ = ((count == 1) ? 1 : 0);
+//     *value_it++ = ((count == 2) ? 1 : 0);
+//     *value_it++ = ((count == 3) ? 1 : 0);
+//     *value_it++ = ((count > 3) ? (count - 3) : 0);
+//   }
+//   for (int count : board_[opponent]) {
+//     *value_it++ = ((count == 1) ? 1 : 0);
+//     *value_it++ = ((count == 2) ? 1 : 0);
+//     *value_it++ = ((count == 3) ? 1 : 0);
+//     *value_it++ = ((count > 3) ? (count - 3) : 0);
+//   }
+//   *value_it++ = (bar_[player]);
+//   *value_it++ = (scores_[player]);
+//   *value_it++ = ((cur_player_ == player) ? 1 : 0);
 
-  *value_it++ = (bar_[opponent]);
-  *value_it++ = (scores_[opponent]);
-  *value_it++ = ((cur_player_ == opponent) ? 1 : 0);
+//   *value_it++ = (bar_[opponent]);
+//   *value_it++ = (scores_[opponent]);
+//   *value_it++ = ((cur_player_ == opponent) ? 1 : 0);
 
-  *value_it++ = ((!dice_.empty()) ? dice_[0] : 0);
-  *value_it++ = ((dice_.size() > 1) ? dice_[1] : 0);
+//   *value_it++ = ((!dice_.empty()) ? dice_[0] : 0);
+//   *value_it++ = ((dice_.size() > 1) ? dice_[1] : 0);
 
-  SPIEL_CHECK_EQ(value_it, values.end());
+//   SPIEL_CHECK_EQ(value_it, values.end());
 }
 
 CrownyState::CrownyState(std::shared_ptr<const Game> game,
-                                 ScoringType scoring_type,
-                                 bool hyper_backgammon)
+                                 ScoringType scoring_type)
     : State(game),
       scoring_type_(scoring_type),
-      hyper_backgammon_(hyper_backgammon),
       cur_player_(kChancePlayerId),
       prev_player_(kChancePlayerId),
       turns_(-1),
@@ -348,43 +319,50 @@ CrownyState::CrownyState(std::shared_ptr<const Game> game,
       o_turns_(0),
       double_turn_(false),
       dice_({}),
-      bar_({0, 0}),
       scores_({0, 0}),
-      board_(
-          {std::vector<int>(kNumPoints, 0), std::vector<int>(kNumPoints, 0)}),
-      turn_history_info_({}) {
+      board_(11, std::vector(11, std::vector<Piece>()))
+{
   SetupInitialBoard();
 }
 
 void CrownyState::SetupInitialBoard() {
-  if (hyper_backgammon_) {
-    // https://bkgm.com/variants/HyperBackgammon.html
-    // Each player has one checker on each of the furthest points.
-    board_[kXPlayerId][0] = board_[kXPlayerId][1] = board_[kXPlayerId][2] = 1;
-    board_[kOPlayerId][23] = board_[kOPlayerId][22] = board_[kOPlayerId][21] =
-        1;
-  } else {
-    // Setup the board. First, XPlayer.
-    board_[kXPlayerId][0] = 2;
-    board_[kXPlayerId][11] = 5;
-    board_[kXPlayerId][16] = 3;
-    board_[kXPlayerId][18] = 5;
-    // OPlayer.
-    board_[kOPlayerId][23] = 2;
-    board_[kOPlayerId][12] = 5;
-    board_[kOPlayerId][7] = 3;
-    board_[kOPlayerId][5] = 5;
-  }
+    for (int row = board_.size() - 3; row < board_.size(); ++row) {
+        for (int col = 0; col < 3; ++col) {
+            board_[row][col].emplace_back(Pawn(PieceType::ENUM_RED));
+        }
+    }
+
+    for (auto [row, col] : std::vector<std::pair<int, int>>{{8, 0}, {9, 0}, {10, 0}, {9, 1}, {10, 1}, {10, 2}}) {
+        board_[row][col].emplace_back(Pawn(PieceType::ENUM_RED));
+    }
+
+    for (auto [row, col] : std::vector<std::pair<int, int>>{{9, 0}, {10, 0}, {9, 1}, {10, 1}}) {
+        board_[row][col].emplace_back(Archer(PieceType::ENUM_RED));
+    }
+
+    board_[10][0].emplace_back(King(PieceType::ENUM_RED));
+
+    for (int row = 0; row < 3; ++row) {
+        for (int col = board_.size() - 3; col < board_.size(); ++col) {
+            board_[row][col].emplace_back(Pawn(PieceType::ENUM_BLUE));
+        }
+    }
+
+    for (auto [row, col] : std::vector<std::pair<int, int>>{{0, 10}, {0, 9}, {0, 8}, {1, 9}, {1, 10}, {2, 10}}) {
+        board_[row][col].emplace_back(Pawn(PieceType::ENUM_BLUE));
+    }
+
+    for (auto [row, col] : std::vector<std::pair<int, int>>{{0, 9}, {0, 10}, {1, 9}, {1, 10}}) {
+        board_[row][col].emplace_back(Archer(PieceType::ENUM_BLUE));
+    }
+
+    board_[0][10].emplace_back(King(PieceType::ENUM_BLUE));
 }
 
-int CrownyState::board(int player, int pos) const {
-  if (pos == kBarPos) {
-    return bar_[player];
-  } else {
-    SPIEL_CHECK_GE(pos, 0);
-    SPIEL_CHECK_LT(pos, kNumPoints);
-    return board_[player][pos];
-  }
+std::vector<Piece> CrownyState::board(std::pair<int, int> pos) const {
+    SPIEL_CHECK_GE(pos.first, 0);
+    SPIEL_CHECK_GE(pos.second, 0);
+    return board_[pos.first][pos.second];
 }
 
 Player CrownyState::CurrentPlayer() const {
@@ -415,10 +393,6 @@ int CrownyState::DiceValue(int i) const {
 
 void CrownyState::DoApplyAction(Action move) {
   if (IsChanceNode()) {
-    turn_history_info_.push_back(TurnHistoryInfo(kChancePlayerId, prev_player_,
-                                                 dice_, move, double_turn_,
-                                                 false, false));
-
     if (turns_ == -1) {
       // The first chance node determines who goes first: X or O.
       // The move is between 0 and 29 and the range determines whether X starts
@@ -449,142 +423,79 @@ void CrownyState::DoApplyAction(Action move) {
 
   // Normal move action.
   std::vector<CheckerMove> moves = SpielMoveToCheckerMoves(cur_player_, move);
-  bool first_move_hit = ApplyCheckerMove(cur_player_, moves[0]);
-  bool second_move_hit = ApplyCheckerMove(cur_player_, moves[1]);
-
-  turn_history_info_.push_back(
-      TurnHistoryInfo(cur_player_, prev_player_, dice_, move, double_turn_,
-                      first_move_hit, second_move_hit));
-
-  if (!double_turn_) {
-    turns_++;
-    if (cur_player_ == kXPlayerId) {
-      x_turns_++;
-    } else if (cur_player_ == kOPlayerId) {
-      o_turns_++;
-    }
-  }
+  ApplyCheckerMove(cur_player_, moves[0]);
+  ApplyCheckerMove(cur_player_, moves[1]);
 
   prev_player_ = cur_player_;
-
-  // Check for doubles.
-  bool extra_turn = false;
-  if (!double_turn_ && dice_[0] == dice_[1]) {
-    // Check the dice, and unuse them if they are used.
-    int dice_used = 0;
-    for (int i = 0; i < 2; i++) {
-      if (dice_[i] > 6) {
-        dice_[i] -= 6;
-        dice_used++;
-      }
-      SPIEL_CHECK_GE(dice_[i], 1);
-      SPIEL_CHECK_LE(dice_[i], 6);
-    }
-
-    if (dice_used == 2) {
-      extra_turn = true;
-    }
-  }
-
-  if (extra_turn) {
-    // Dice have been unused above.
-    double_turn_ = true;
-  } else {
-    cur_player_ = kChancePlayerId;
-    dice_.clear();
-    double_turn_ = false;
-  }
 }
 
 void CrownyState::UndoAction(int player, Action action) {
-  {
-    const TurnHistoryInfo& thi = turn_history_info_.back();
-    SPIEL_CHECK_EQ(thi.player, player);
-    SPIEL_CHECK_EQ(action, thi.action);
-    cur_player_ = thi.player;
-    prev_player_ = thi.prev_player;
-    dice_ = thi.dice;
-    double_turn_ = thi.double_turn;
-    if (player != kChancePlayerId) {
-      std::vector<CheckerMove> moves = SpielMoveToCheckerMoves(player, action);
-      SPIEL_CHECK_EQ(moves.size(), 2);
-      moves[0].hit = thi.first_move_hit;
-      moves[1].hit = thi.second_move_hit;
-      UndoCheckerMove(player, moves[1]);
-      UndoCheckerMove(player, moves[0]);
-      turns_--;
-      if (!double_turn_) {
-        if (player == kXPlayerId) {
-          x_turns_--;
-        } else if (player == kOPlayerId) {
-          o_turns_--;
-        }
-      }
-    }
-  }
-  turn_history_info_.pop_back();
-  history_.pop_back();
-  --move_number_;
+    //TODO: implement
+//   {
+//     SPIEL_CHECK_EQ(thi.player, player);
+//     SPIEL_CHECK_EQ(action, thi.action);
+//     cur_player_ = thi.player;
+//     prev_player_ = thi.prev_player;
+//     dice_ = thi.dice;
+//     double_turn_ = thi.double_turn;
+//     if (player != kChancePlayerId) {
+//       std::vector<CheckerMove> moves = SpielMoveToCheckerMoves(player, action);
+//       SPIEL_CHECK_EQ(moves.size(), 2);
+//       UndoCheckerMove(player, moves[1]);
+//       UndoCheckerMove(player, moves[0]);
+//       turns_--;
+//       if (!double_turn_) {
+//         if (player == kXPlayerId) {
+//           x_turns_--;
+//         } else if (player == kOPlayerId) {
+//           o_turns_--;
+//         }
+//       }
+//     }
+//   }
+//   --move_number_;
 }
 
-bool CrownyState::IsHit(Player player, int from_pos, int num) const {
-  if (from_pos != kPassPos) {
-    int to = PositionFrom(player, from_pos, num);
-    return to != kScorePos && board(Opponent(player), to) == 1;
-  } else {
-    return false;
-  }
-}
+// bool CrownyState::IsHit(Player player, std::pair<int,int> from_pos, int num) const {
+//   if (from_pos != kPassPos) {
+//     std::pair<int, int>to = PositionFrom(player, from_pos, num);
+//     return to != kScorePos && board(Opponent(player), to) == 1;
+//   } else {
+//     return false;
+//   }
+// }
 
-Action CrownyState::TranslateAction(int from1, int from2,
-                                        bool use_high_die_first) const {
-  int player = CurrentPlayer();
-  int num1 = use_high_die_first ? dice_.at(1) : dice_.at(0);
-  int num2 = use_high_die_first ? dice_.at(0) : dice_.at(1);
-  bool hit1 = IsHit(player, from1, num1);
-  bool hit2 = IsHit(player, from2, num2);
-  std::vector<CheckerMove> moves = {{from1, num1, hit1}, {from2, num2, hit2}};
-  return CheckerMovesToSpielMove(moves);
-}
-
-Action CrownyState::EncodedBarMove() const { return 24; }
-
-Action CrownyState::EncodedPassMove() const { return 25; }
+// Action CrownyState::TranslateAction(std::pair<int, int> from1, std::pair<int, int> from2,
+//                                         bool use_high_die_first) const {   
+// //TOOD: implement
+//   int player = CurrentPlayer();
+//   int num1 = use_high_die_first ? dice_.at(1) : dice_.at(0);
+//   int num2 = use_high_die_first ? dice_.at(0) : dice_.at(1);
+//   std::vector<CheckerMove> moves = {{from1, num1}, {from2, num2}};
+//   return CheckerMovesToSpielMove(moves);
+// }
 
 Action CrownyState::CheckerMovesToSpielMove(
     const std::vector<CheckerMove>& moves) const {
-  SPIEL_CHECK_LE(moves.size(), 2);
-  int dig0 = EncodedPassMove();
-  int dig1 = EncodedPassMove();
+  SPIEL_CHECK_EQ(moves.size(), 2);
   bool high_roll_first = false;
   int high_roll = DiceValue(0) >= DiceValue(1) ? DiceValue(0) : DiceValue(1);
 
-  if (!moves.empty()) {
-    int pos1 = moves[0].pos;
-    if (pos1 == kBarPos) {
-      pos1 = EncodedBarMove();
-    }
-    if (pos1 != kPassPos) {
-      int num1 = moves[0].num;
-      dig0 = pos1;
-      high_roll_first = num1 == high_roll;
-    }
-  }
+    std::pair<int, int> from1 = moves[0].from;
+    std::pair<int, int> to1 = moves[0].to;
+    int dig0 = from1.first*11 + from1.second;
+    int dig1 = to1.first*11 + to1.second;
+    high_roll_first = GetDistance(from1, to1) == high_roll;
+    
+    std::pair<int, int> from2 = moves[1].from;
+    std::pair<int, int> to2 = moves[1].to;
+    int dig2 = from2.first*11 + from2.second;
+    int dig3 = to2.first*11 + to2.second;
 
-  if (moves.size() > 1) {
-    int pos2 = moves[1].pos;
-    if (pos2 == kBarPos) {
-      pos2 = EncodedBarMove();
-    }
-    if (pos2 != kPassPos) {
-      dig1 = pos2;
-    }
-  }
-
-  Action move = dig1 * 26 + dig0;
-  if (!high_roll_first) {
-    move += 676;  // 26**2
-  }
+  Action move = dig3 * 121*121*121 + dig2 * 121*121 + dig1 * 121 + dig0;
+//   if (!high_roll_first) {
+//     move += 121*121*121*121;  
+//   }
   SPIEL_CHECK_GE(move, 0);
   SPIEL_CHECK_LT(move, kNumDistinctActions);
   return move;
@@ -595,90 +506,63 @@ std::vector<CheckerMove> CrownyState::SpielMoveToCheckerMoves(
   SPIEL_CHECK_GE(spiel_move, 0);
   SPIEL_CHECK_LT(spiel_move, kNumDistinctActions);
 
-  bool high_roll_first = spiel_move < 676;
-  if (!high_roll_first) {
-    spiel_move -= 676;
-  }
-
   std::vector<Action> digits = {spiel_move % 26, spiel_move / 26};
   std::vector<CheckerMove> cmoves;
-  int high_roll = DiceValue(0) >= DiceValue(1) ? DiceValue(0) : DiceValue(1);
-  int low_roll = DiceValue(0) < DiceValue(1) ? DiceValue(0) : DiceValue(1);
 
+//TODO: check this (maybe add test the spidel to checker to spiel equals)
   for (int i = 0; i < 2; ++i) {
-    SPIEL_CHECK_GE(digits[i], 0);
-    SPIEL_CHECK_LE(digits[i], 25);
+    auto to_digit = spiel_move % 121;
+    spiel_move /= 121;
+    auto from_digit = spiel_move % 121;
+    spiel_move /= 121;
 
-    int num = -1;
-    if (i == 0) {
-      num = high_roll_first ? high_roll : low_roll;
-    } else {
-      num = high_roll_first ? low_roll : high_roll;
-    }
-    SPIEL_CHECK_GE(num, 1);
-    SPIEL_CHECK_LE(num, 6);
-
-    if (digits[i] == EncodedPassMove()) {
-      cmoves.push_back(CheckerMove(kPassPos, -1, false));
-    } else {
-      cmoves.push_back(CheckerMove(
-          digits[i] == EncodedBarMove() ? kBarPos : digits[i], num, false));
-    }
+      cmoves.push_back(CheckerMove(std::pair(from_digit/11, from_digit%11), std::pair(to_digit/11, to_digit%11)));
   }
 
   return cmoves;
 }
 
-std::vector<CheckerMove> CrownyState::AugmentWithHitInfo(
-    int player, const std::vector<CheckerMove> &cmoves) const {
-  std::vector<CheckerMove> new_cmoves = cmoves;
-  for (int i = 0; i < 2; ++i) {
-    new_cmoves[i].hit = IsHit(player, cmoves[i].pos, cmoves[i].num);
-  }
-  return new_cmoves;
-}
+// bool CrownyState::IsPosInHome(int player, std::pair<int, int> pos) const {
+//   switch (player) {
+//     case kXPlayerId:
+//       return (pos >= 18 && pos <= 23);
+//     case kOPlayerId:
+//       return (pos >= 0 && pos <= 5);
+//     default:
+//       SpielFatalError(absl::StrCat("Unknown player ID: ", player));
+//   }
+// }
 
-bool CrownyState::IsPosInHome(int player, int pos) const {
-  switch (player) {
-    case kXPlayerId:
-      return (pos >= 18 && pos <= 23);
-    case kOPlayerId:
-      return (pos >= 0 && pos <= 5);
-    default:
-      SpielFatalError(absl::StrCat("Unknown player ID: ", player));
-  }
-}
+// int CrownyState::CheckersInHome(int player) const {
+//   int c = 0;
+//   for (int i = 0; i < 6; i++) {
+//     c += board(player, (player == kXPlayerId ? (23 - i) : i));
+//   }
+//   return c;
+// }
 
-int CrownyState::CheckersInHome(int player) const {
-  int c = 0;
-  for (int i = 0; i < 6; i++) {
-    c += board(player, (player == kXPlayerId ? (23 - i) : i));
-  }
-  return c;
-}
+// bool CrownyState::AllInHome(int player) const {
+//   if (bar_[player] > 0) {
+//     return false;
+//   }
 
-bool CrownyState::AllInHome(int player) const {
-  if (bar_[player] > 0) {
-    return false;
-  }
+//   SPIEL_CHECK_GE(player, 0);
+//   SPIEL_CHECK_LE(player, 1);
 
-  SPIEL_CHECK_GE(player, 0);
-  SPIEL_CHECK_LE(player, 1);
+//   // Looking for any checkers outside home.
+//   // --> XPlayer scans 0-17.
+//   // --> OPlayer scans 6-23.
+//   int scan_start = (player == kXPlayerId ? 0 : 6);
+//   int scan_end = (player == kXPlayerId ? 17 : 23);
 
-  // Looking for any checkers outside home.
-  // --> XPlayer scans 0-17.
-  // --> OPlayer scans 6-23.
-  int scan_start = (player == kXPlayerId ? 0 : 6);
-  int scan_end = (player == kXPlayerId ? 17 : 23);
+//   for (int i = scan_start; i <= scan_end; ++i) {
+//     if (board_[player][i] > 0) {
+//       return false;
+//     }
+//   }
 
-  for (int i = scan_start; i <= scan_end; ++i) {
-    if (board_[player][i] > 0) {
-      return false;
-    }
-  }
-
-  return true;
-}
+//   return true;
+// }
 
 int CrownyState::HighestUsableDiceOutcome() const {
   if (UsableDiceOutcome(dice_[1])) {
@@ -690,98 +574,52 @@ int CrownyState::HighestUsableDiceOutcome() const {
   }
 }
 
-int CrownyState::FurthestCheckerInHome(int player) const {
-  // Looking for any checkers in home.
-  // --> XPlayer scans 23 -> 18
-  // --> OPlayer scans  0 -> 5
-  int scan_start = (player == kXPlayerId ? 23 : 0);
-  int scan_end = (player == kXPlayerId ? 17 : 6);
-  int inc = (player == kXPlayerId ? -1 : 1);
+// int CrownyState::FurthestCheckerInHome(int player) const {
+//   // Looking for any checkers in home.
+//   // --> XPlayer scans 23 -> 18
+//   // --> OPlayer scans  0 -> 5
+//   int scan_start = (player == kXPlayerId ? 23 : 0);
+//   int scan_end = (player == kXPlayerId ? 17 : 6);
+//   int inc = (player == kXPlayerId ? -1 : 1);
 
-  int furthest = (player == kXPlayerId ? 24 : -1);
+//   int furthest = (player == kXPlayerId ? 24 : -1);
 
-  for (int i = scan_start; i != scan_end; i += inc) {
-    if (board_[player][i] > 0) {
-      furthest = i;
-    }
-  }
+//   for (int i = scan_start; i != scan_end; i += inc) {
+//     if (board_[player][i].size() > 0) {
+//       furthest = i;
+//     }
+//   }
 
-  if (furthest == 24 || furthest == -1) {
-    return -1;
-  } else {
-    return furthest;
-  }
-}
+//   if (furthest == 24 || furthest == -1) {
+//     return -1;
+//   } else {
+//     return furthest;
+//   }
+// }
 
 bool CrownyState::UsableDiceOutcome(int outcome) const {
   return (outcome >= 1 && outcome <= 6);
 }
 
-int CrownyState::PositionFromBar(int player, int spaces) const {
-  if (player == kXPlayerId) {
-    return -1 + spaces;
-  } else if (player == kOPlayerId) {
-    return 24 - spaces;
-  } else {
-    SpielFatalError(absl::StrCat("Invalid player: ", player));
-  }
+// int CrownyState::NumOppCheckers(int player, std::pair<int, int> pos) const {
+//   return board_[Opponent(player)][pos];
+// }
+
+int CrownyState::GetDistance(std::pair<int, int>from, std::pair<int, int>to) const {
+  SPIEL_CHECK_NE(from.first, kScorePos);
+  SPIEL_CHECK_NE(from.second, kScorePos);
+  SPIEL_CHECK_NE(to.first, kScorePos);
+  SPIEL_CHECK_NE(to.second, kScorePos);
+
+  return std::max(std::abs(to.second - from.second), std::abs(to.first - from.first));
 }
 
-int CrownyState::PositionFrom(int player, int pos, int spaces) const {
-  if (pos == kBarPos) {
-    return PositionFromBar(player, spaces);
-  }
-
-  if (player == kXPlayerId) {
-    int new_pos = pos + spaces;
-    return (new_pos > 23 ? kScorePos : new_pos);
-  } else if (player == kOPlayerId) {
-    int new_pos = pos - spaces;
-    return (new_pos < 0 ? kScorePos : new_pos);
-  } else {
-    SpielFatalError(absl::StrCat("Invalid player: ", player));
-  }
+bool CrownyState::IsOff(std::pair<int, int> pos) const {
+  return pos.first < 0 || pos.first >= board_.size() || pos.second < 0 || pos.second >= board_.size();
 }
 
-int CrownyState::NumOppCheckers(int player, int pos) const {
-  return board_[Opponent(player)][pos];
-}
-
-int CrownyState::GetDistance(int player, int from, int to) const {
-  SPIEL_CHECK_NE(from, kScorePos);
-  SPIEL_CHECK_NE(to, kScorePos);
-  if (from == kBarPos && player == kXPlayerId) {
-    from = -1;
-  } else if (from == kBarPos && player == kOPlayerId) {
-    from = 24;
-  }
-  return std::abs(to - from);
-}
-
-bool CrownyState::IsOff(int player, int pos) const {
-  // Returns if an absolute position is off the board.
-  return ((player == kXPlayerId && pos > 23) ||
-          (player == kOPlayerId && pos < 0));
-}
-
-bool CrownyState::IsFurther(int player, int pos1, int pos2) const {
+bool CrownyState::IsFurther(int player, std::pair<int, int> pos1, std::pair<int, int> pos2) const {
   if (pos1 == pos2) {
-    return false;
-  }
-
-  if (pos1 == kBarPos) {
-    return true;
-  }
-
-  if (pos2 == kBarPos) {
-    return false;
-  }
-
-  if (pos1 == kPassPos) {
-    return false;
-  }
-
-  if (pos2 == kPassPos) {
     return false;
   }
 
@@ -789,18 +627,18 @@ bool CrownyState::IsFurther(int player, int pos1, int pos2) const {
           (player == kOPlayerId && pos1 > pos2));
 }
 
-int CrownyState::GetToPos(int player, int from_pos, int pips) const {
-  if (player == kXPlayerId) {
-    return (from_pos == kBarPos ? -1 : from_pos) + pips;
-  } else if (player == kOPlayerId) {
-    return (from_pos == kBarPos ? 24 : from_pos) - pips;
-  } else {
-    SpielFatalError(absl::StrCat("Player (", player, ") unrecognized."));
-  }
-}
+// int CrownyState::GetToPos(int player, std::pair<int,int> from_pos, int pips) const {
+//   if (player == kXPlayerId) {
+//     return (from_pos == kBarPos ? -1 : from_pos) + pips;
+//   } else if (player == kOPlayerId) {
+//     return (from_pos == kBarPos ? 24 : from_pos) - pips;
+//   } else {
+//     SpielFatalError(absl::StrCat("Player (", player, ") unrecognized."));
+//   }
+// }
 
 // Basic from_to check (including bar checkers).
-bool CrownyState::IsLegalFromTo(int player, int from_pos, int to_pos,
+bool CrownyState::IsLegalFromTo(int player, std::pair<int,int> from_pos, std::pair<int,int> to_pos,
                                     int my_checkers_from,
                                     int opp_checkers_to) const {
   // Must have at least one checker the from position.
@@ -810,39 +648,6 @@ bool CrownyState::IsLegalFromTo(int player, int from_pos, int to_pos,
 
   if (opp_checkers_to > 1) {
     return false;
-  }
-
-  // Quick validity checks out of the way. This appears to be a valid move.
-  // Now, must check: if there are moves on this player's bar, they must move
-  // them first, and if there are no legal moves out of the bar, the player
-  // loses their turn.
-  int my_bar_checkers = board(player, kBarPos);
-  if (my_bar_checkers > 0 && from_pos != kBarPos) {
-    return false;
-  }
-
-  // If this is a scoring move, then check that all this player's checkers are
-  // either scored or home.
-  if (to_pos < 0 || to_pos > 23) {
-    if ((CheckersInHome(player) + scores_[player]) != 15) {
-      return false;
-    }
-
-    // If it's not *exactly* the right amount, then we have to do a check to see
-    // if there exist checkers further from home, as those must be moved first.
-    if (player == kXPlayerId && to_pos > 24) {
-      for (int pos = from_pos - 1; pos >= 18; pos--) {
-        if (board(player, pos) > 0) {
-          return false;
-        }
-      }
-    } else if (player == kOPlayerId && to_pos < -1) {
-      for (int pos = from_pos + 1; pos <= 5; pos++) {
-        if (board(player, pos) > 0) {
-          return false;
-        }
-      }
-    }
   }
 
   return true;
@@ -856,205 +661,104 @@ std::string CrownyState::DiceToString(int outcome) const {
   }
 }
 
-int CrownyState::CountTotalCheckers(int player) const {
-  int total = 0;
-  for (int i = 0; i < 24; ++i) {
-    SPIEL_CHECK_GE(board_[player][i], 0);
-    total += board_[player][i];
-  }
-  SPIEL_CHECK_GE(bar_[player], 0);
-  total += bar_[player];
-  SPIEL_CHECK_GE(scores_[player], 0);
-  total += scores_[player];
-  return total;
-}
-
-int CrownyState::IsGammoned(int player) const {
-  if (hyper_backgammon_) {
-    // TODO(author5): remove this when the doubling cube is implemented.
-    // In Hyper-backgammon, gammons and backgammons only multiply when the cube
-    // has been offered and accepted. However, we do not yet support the cube.
-    return false;
-  }
-
-  // Does the player not have any checkers borne off?
-  return scores_[player] == 0;
-}
-
-int CrownyState::IsBackgammoned(int player) const {
-  if (hyper_backgammon_) {
-    // TODO(author5): remove this when the doubling cube is implemented.
-    // In Hyper-backgammon, gammons and backgammons only multiply when the cube
-    // has been offered and accepted. However, we do not yet support the cube.
-    return false;
-  }
-
-  // Does the player not have any checkers borne off and either has a checker
-  // still in the bar or still in the opponent's home?
-  if (scores_[player] > 0) {
-    return false;
-  }
-
-  if (bar_[player] > 0) {
-    return true;
-  }
-
-  // XPlayer scans 0-5.
-  // OPlayer scans 18-23.
-  int scan_start = (player == kXPlayerId ? 0 : 18);
-  int scan_end = (player == kXPlayerId ? 5 : 23);
-
-  for (int i = scan_start; i <= scan_end; ++i) {
-    if (board_[player][i] > 0) {
-      return true;
-    }
-  }
-
-  return false;
-}
-
 std::set<CheckerMove> CrownyState::LegalCheckerMoves(int player) const {
-  std::set<CheckerMove> moves;
+    //TODO: implement
+//   std::set<CheckerMove> moves;
 
-  if (bar_[player] > 0) {
-    // If there are any checkers are the bar, must move them out first.
-    for (int outcome : dice_) {
-      if (UsableDiceOutcome(outcome)) {
-        int pos = PositionFromBar(player, outcome);
-        if (NumOppCheckers(player, pos) <= 1) {
-          bool hit = NumOppCheckers(player, pos) == 1;
-          moves.insert(CheckerMove(kBarPos, outcome, hit));
-        }
-      }
-    }
-    return moves;
-  }
+//   // Regular board moves.
+//   bool all_in_home = AllInHome(player);
+//   for (int i = 0; i < kNumPoints; ++i) {
+//     if (board_[player][i].size() > 0) {
+//       for (int outcome : dice_) {
+//         if (UsableDiceOutcome(outcome)) {
+//           std::pair<int, int> pos = PositionFrom(player, i, outcome);
+//           if (pos == kScorePos && all_in_home) {
+//             // Check whether a bear off move is legal.
 
-  // Regular board moves.
-  bool all_in_home = AllInHome(player);
-  for (int i = 0; i < kNumPoints; ++i) {
-    if (board_[player][i] > 0) {
-      for (int outcome : dice_) {
-        if (UsableDiceOutcome(outcome)) {
-          int pos = PositionFrom(player, i, outcome);
-          if (pos == kScorePos && all_in_home) {
-            // Check whether a bear off move is legal.
-
-            // It is ok to bear off if all the checkers are at home and the
-            // point being used to move from exactly matches the distance from
-            // just stepping off the board.
-            if ((player == kXPlayerId && i + outcome == 24) ||
-                (player == kOPlayerId && i - outcome == -1)) {
-              moves.insert(CheckerMove(i, outcome, false));
-            } else {
-              // Otherwise, a die can only be used to move a checker off if
-              // there are no checkers further than it in the player's home.
-              if (i == FurthestCheckerInHome(player)) {
-                moves.insert(CheckerMove(i, outcome, false));
-              }
-            }
-          } else if (pos != kScorePos && NumOppCheckers(player, pos) <= 1) {
-            // Regular move.
-            bool hit = NumOppCheckers(player, pos) == 1;
-            moves.insert(CheckerMove(i, outcome, hit));
-          }
-        }
-      }
-    }
-  }
-  return moves;
+//             // It is ok to bear off if all the checkers are at home and the
+//             // point being used to move from exactly matches the distance from
+//             // just stepping off the board.
+//             if ((player == kXPlayerId && i + outcome == 24) ||
+//                 (player == kOPlayerId && i - outcome == -1)) {
+//               moves.insert(CheckerMove(i, outcome, false));
+//             } else {
+//               // Otherwise, a die can only be used to move a checker off if
+//               // there are no checkers further than it in the player's home.
+//               if (i == FurthestCheckerInHome(player)) {
+//                 moves.insert(CheckerMove(i, outcome, false));
+//               }
+//             }
+//           } else if (pos != kScorePos && NumOppCheckers(player, pos) <= 1) {
+//             // Regular move.
+//             bool hit = NumOppCheckers(player, pos) == 1;
+//             moves.insert(CheckerMove(i, outcome, hit));
+//           }
+//         }
+//       }
+//     }
+//   }
+//   return moves;
 }
 
-bool CrownyState::ApplyCheckerMove(int player, const CheckerMove& move) {
-  // Pass does nothing.
-  if (move.pos < 0) {
-    return false;
-  }
+std::pair<int, int> CrownyState::PositionFrom(int player, std::pair<int, int> from, std::pair<int, int> to) const {
+    return to; //TODO: fix 
+//   if (player == kXPlayerId) {
+//     int new_pos = pos + spaces;
+//     return (new_pos > 23 ? kScorePos : new_pos);
+//   } else if (player == kOPlayerId) {
+//     int new_pos = pos - spaces;
+//     return (new_pos < 0 ? kScorePos : new_pos);
+//   } else {
+//     SpielFatalError(absl::StrCat("Invalid player: ", player));
+//   }
+}
+
+void CrownyState::ApplyCheckerMove(int player, const CheckerMove& move) {
 
   // First, remove the checker.
-  int next_pos = -1;
-  if (move.pos == kBarPos) {
-    bar_[player]--;
-    next_pos = PositionFromBar(player, move.num);
-  } else {
-    board_[player][move.pos]--;
-    next_pos = PositionFrom(player, move.pos, move.num);
-  }
+  std::pair<int, int> next_pos;
+
+    auto piece = board_[move.from.first][move.from.second].back();
+    board_[move.from.first][move.from.second].pop_back();
+    next_pos = PositionFrom(player, move.from, move.to);
 
   // Mark the die as used.
   for (int i = 0; i < 2; ++i) {
-    if (dice_[i] == move.num) {
+    if (dice_[i] == GetDistance(move.from, move.to)) {
       dice_[i] += 6;
       break;
     }
   }
 
   // Now add the checker (or score).
-  if (next_pos == kScorePos) {
-    scores_[player]++;
-  } else {
-    board_[player][next_pos]++;
-  }
-
-  bool hit = false;
-  // If there was a hit, remove opponent's piece and add to bar.
-  // Note: the move.hit will only be properly set during the legal moves search,
-  // so we have to also check here if there is a hit candidate.
-  if (move.hit ||
-      (next_pos != kScorePos && board_[Opponent(player)][next_pos] == 1)) {
-    hit = true;
-    board_[Opponent(player)][next_pos]--;
-    bar_[Opponent(player)]++;
-  }
-
-  return hit;
+    board_[move.to.first][move.to.second].push_back(piece);
+  
 }
 
 // Undoes a checker move. Important note: this checkermove needs to have
 // move.hit set from the history to properly undo a move (this information is
 // not tracked in the action value).
 void CrownyState::UndoCheckerMove(int player, const CheckerMove& move) {
-  // Undoing a pass does nothing
-  if (move.pos < 0) {
-    return;
-  }
 
   // First, figure out the next position.
-  int next_pos = -1;
-  if (move.pos == kBarPos) {
-    next_pos = PositionFromBar(player, move.num);
-  } else {
-    next_pos = PositionFrom(player, move.pos, move.num);
-  }
-
-  // If there was a hit, take it out of the opponent's bar and put it back
-  // onto the next position.
-  if (move.hit) {
-    bar_[Opponent(player)]--;
-    board_[Opponent(player)][next_pos]++;
-  }
-
+  std::pair<int, int> next_pos;
+  
   // Remove the moved checker or decrement score.
-  if (next_pos == kScorePos) {
-    scores_[player]--;
-  } else {
-    board_[player][next_pos]--;
-  }
+
+    Piece piece = board_[move.to.first][move.to.second].back();
+    board_[move.to.first][move.to.second].pop_back();
+  
 
   // Mark the die as unused.
   for (int i = 0; i < 2; ++i) {
-    if (dice_[i] == move.num + 6) {
+    if (dice_[i] == GetDistance(move.from, move.to) + 6) {
       dice_[i] -= 6;
       break;
     }
   }
 
-  // Finally, return back the checker to its original position.
-  if (move.pos == kBarPos) {
-    bar_[player]++;
-  } else {
-    board_[player][move.pos]++;
-  }
+    board_[move.from.first][move.from.second].push_back(piece);
+  
 }
 
 // Returns the maximum move size (2, 1, or 0)
@@ -1088,57 +792,44 @@ int CrownyState::RecLegalMoves(
 
 std::vector<Action> CrownyState::ProcessLegalMoves(
     int max_moves, const std::set<std::vector<CheckerMove>>& movelist) const {
-  if (max_moves == 0) {
-    SPIEL_CHECK_EQ(movelist.size(), 1);
-    SPIEL_CHECK_TRUE(movelist.begin()->empty());
+//TODO: implement
+//   // Rule 2 in Movement of Checkers:
+//   // A player must use both numbers of a roll if this is legally possible (or
+//   // all four numbers of a double). When only one number can be played, the
+//   // player must play that number. Or if either number can be played but not
+//   // both, the player must play the larger one. When neither number can be used,
+//   // the player loses his turn. In the case of doubles, when all four numbers
+//   // cannot be played, the player must play as many numbers as he can.
+//   std::vector<Action> legal_actions;
+//   int max_roll = -1;
+//   for (const auto& move : movelist) {
+//     if (max_moves == 2) {
+//       // Only add moves that are size 2.
+//       if (move.size() == 2) {
+//         legal_actions.push_back(CheckerMovesToSpielMove(move));
+//       }
+//     } else if (max_moves == 1) {
+//       // We are just finding the maximum roll.
+//       max_roll = std::max(max_roll, move[0].num);
+//     }
+//   }
 
-    // Passing is always a legal move!
-    return {CheckerMovesToSpielMove(
-        {{kPassPos, -1, false}, {kPassPos, -1, false}})};
-  }
+//   if (max_moves == 1) {
+//     // Another round to add those that have the max die roll.
+//     for (const auto& move : movelist) {
+//       if (move[0].num == max_roll) {
+//         legal_actions.push_back(CheckerMovesToSpielMove(move));
+//       }
+//     }
+//   }
 
-  // Rule 2 in Movement of Checkers:
-  // A player must use both numbers of a roll if this is legally possible (or
-  // all four numbers of a double). When only one number can be played, the
-  // player must play that number. Or if either number can be played but not
-  // both, the player must play the larger one. When neither number can be used,
-  // the player loses his turn. In the case of doubles, when all four numbers
-  // cannot be played, the player must play as many numbers as he can.
-  std::vector<Action> legal_actions;
-  int max_roll = -1;
-  for (const auto& move : movelist) {
-    if (max_moves == 2) {
-      // Only add moves that are size 2.
-      if (move.size() == 2) {
-        legal_actions.push_back(CheckerMovesToSpielMove(move));
-      }
-    } else if (max_moves == 1) {
-      // We are just finding the maximum roll.
-      max_roll = std::max(max_roll, move[0].num);
-    }
-  }
-
-  if (max_moves == 1) {
-    // Another round to add those that have the max die roll.
-    for (const auto& move : movelist) {
-      if (move[0].num == max_roll) {
-        legal_actions.push_back(CheckerMovesToSpielMove(move));
-      }
-    }
-  }
-
-  SPIEL_CHECK_FALSE(legal_actions.empty());
-  return legal_actions;
+//   SPIEL_CHECK_FALSE(legal_actions.empty());
+//   return legal_actions;
 }
 
 std::vector<Action> CrownyState::LegalActions() const {
   if (IsChanceNode()) return LegalChanceOutcomes();
   if (IsTerminal()) return {};
-
-  SPIEL_CHECK_EQ(CountTotalCheckers(kXPlayerId),
-                 NumCheckersPerPlayer(game_.get()));
-  SPIEL_CHECK_EQ(CountTotalCheckers(kOPlayerId),
-                 NumCheckersPerPlayer(game_.get()));
 
   std::unique_ptr<State> cstate = this->Clone();
   CrownyState* state = dynamic_cast<CrownyState*>(cstate.get());
@@ -1170,70 +861,71 @@ std::vector<std::pair<Action, double>> CrownyState::ChanceOutcomes() const {
 }
 
 std::string CrownyState::ToString() const {
-  std::vector<std::string> board_array = {
-      "+------|------+", "|......|......|", "|......|......|",
-      "|......|......|", "|......|......|", "|......|......|",
-      "|      |      |", "|......|......|", "|......|......|",
-      "|......|......|", "|......|......|", "|......|......|",
-      "+------|------+"};
+    //TODO: implement
+//   std::vector<std::string> board_array = {
+//       "+------|------+", "|......|......|", "|......|......|",
+//       "|......|......|", "|......|......|", "|......|......|",
+//       "|      |      |", "|......|......|", "|......|......|",
+//       "|......|......|", "|......|......|", "|......|......|",
+//       "+------|------+"};
 
-  // Fill the board.
-  for (int pos = 0; pos < 24; pos++) {
-    if (board_[kXPlayerId][pos] > 0 || board_[kOPlayerId][pos] > 0) {
-      int start_row = (pos < 12 ? 11 : 1);
-      int col = (pos < 12 ? (pos >= 6 ? 12 - pos : 13 - pos)
-                          : (pos < 18 ? pos - 11 : pos - 10));
+//   // Fill the board.
+//   for (std::pair<int, int> pos = 0; pos < 24; pos++) {
+//     if (board_[kXPlayerId][pos] > 0 || board_[kOPlayerId][pos] > 0) {
+//       int start_row = (pos < 12 ? 11 : 1);
+//       int col = (pos < 12 ? (pos >= 6 ? 12 - pos : 13 - pos)
+//                           : (pos < 18 ? pos - 11 : pos - 10));
 
-      int row_offset = (pos < 12 ? -1 : 1);
+//       int row_offset = (pos < 12 ? -1 : 1);
 
-      int owner = board_[kXPlayerId][pos] > 0 ? kXPlayerId : kOPlayerId;
-      char piece = (owner == kXPlayerId ? 'x' : 'o');
-      int my_checkers = board_[owner][pos];
+//       int owner = board_[kXPlayerId][pos] > 0 ? kXPlayerId : kOPlayerId;
+//       char piece = (owner == kXPlayerId ? 'x' : 'o');
+//       int my_checkers = board_[owner][pos];
 
-      for (int i = 0; i < 5 && i < my_checkers; i++) {
-        board_array[start_row + i * row_offset][col] = piece;
-      }
+//       for (int i = 0; i < 5 && i < my_checkers; i++) {
+//         board_array[start_row + i * row_offset][col] = piece;
+//       }
 
-      // Check for special display of >= 10 and >5 pieces
-      if (my_checkers >= 10) {
-        char lsd = std::to_string(my_checkers % 10)[0];
-        // Make sure it reads downward.
-        if (pos < 12) {
-          board_array[start_row + row_offset][col] = '1';
-          board_array[start_row][col] = lsd;
-        } else {
-          board_array[start_row][col] = '1';
-          board_array[start_row + row_offset][col] = lsd;
-        }
-      } else if (my_checkers > 5) {
-        board_array[start_row][col] = std::to_string(my_checkers)[0];
-      }
-    }
-  }
+//       // Check for special display of >= 10 and >5 pieces
+//       if (my_checkers >= 10) {
+//         char lsd = std::to_string(my_checkers % 10)[0];
+//         // Make sure it reads downward.
+//         if (pos < 12) {
+//           board_array[start_row + row_offset][col] = '1';
+//           board_array[start_row][col] = lsd;
+//         } else {
+//           board_array[start_row][col] = '1';
+//           board_array[start_row + row_offset][col] = lsd;
+//         }
+//       } else if (my_checkers > 5) {
+//         board_array[start_row][col] = std::to_string(my_checkers)[0];
+//       }
+//     }
+//   }
 
-  std::string board_str = absl::StrJoin(board_array, "\n") + "\n";
+//   std::string board_str = absl::StrJoin(board_array, "\n") + "\n";
 
-  // Extra info like whose turn it is etc.
-  absl::StrAppend(&board_str, "Turn: ");
-  absl::StrAppend(&board_str, CurPlayerToString(cur_player_));
-  absl::StrAppend(&board_str, "\n");
-  absl::StrAppend(&board_str, "Dice: ");
-  absl::StrAppend(&board_str, !dice_.empty() ? DiceToString(dice_[0]) : "");
-  absl::StrAppend(&board_str, dice_.size() > 1 ? DiceToString(dice_[1]) : "");
-  absl::StrAppend(&board_str, "\n");
-  absl::StrAppend(&board_str, "Bar:");
-  absl::StrAppend(&board_str,
-                  (bar_[kXPlayerId] > 0 || bar_[kOPlayerId] > 0 ? " " : ""));
-  for (int p = 0; p < 2; p++) {
-    for (int n = 0; n < bar_[p]; n++) {
-      absl::StrAppend(&board_str, (p == kXPlayerId ? "x" : "o"));
-    }
-  }
-  absl::StrAppend(&board_str, "\n");
-  absl::StrAppend(&board_str, "Scores, X: ", scores_[kXPlayerId]);
-  absl::StrAppend(&board_str, ", O: ", scores_[kOPlayerId], "\n");
+//   // Extra info like whose turn it is etc.
+//   absl::StrAppend(&board_str, "Turn: ");
+//   absl::StrAppend(&board_str, CurPlayerToString(cur_player_));
+//   absl::StrAppend(&board_str, "\n");
+//   absl::StrAppend(&board_str, "Dice: ");
+//   absl::StrAppend(&board_str, !dice_.empty() ? DiceToString(dice_[0]) : "");
+//   absl::StrAppend(&board_str, dice_.size() > 1 ? DiceToString(dice_[1]) : "");
+//   absl::StrAppend(&board_str, "\n");
+//   absl::StrAppend(&board_str, "Bar:");
+//   absl::StrAppend(&board_str,
+//                   (bar_[kXPlayerId] > 0 || bar_[kOPlayerId] > 0 ? " " : ""));
+//   for (int p = 0; p < 2; p++) {
+//     for (int n = 0; n < bar_[p]; n++) {
+//       absl::StrAppend(&board_str, (p == kXPlayerId ? "x" : "o"));
+//     }
+//   }
+//   absl::StrAppend(&board_str, "\n");
+//   absl::StrAppend(&board_str, "Scores, X: ", scores_[kXPlayerId]);
+//   absl::StrAppend(&board_str, ", O: ", scores_[kOPlayerId], "\n");
 
-  return board_str;
+//   return board_str;
 }
 
 bool CrownyState::IsTerminal() const {
@@ -1261,12 +953,8 @@ std::vector<double> CrownyState::Returns() const {
     default:
       break;
 
-    case ScoringType::kEnableGammons:
-      util_mag = (IsGammoned(loser) ? 2 : 1);
-      break;
-
     case ScoringType::kFullScoring:
-      util_mag = (IsBackgammoned(loser) ? 3 : IsGammoned(loser) ? 2 : 1);
+      util_mag = 1;
       break;
   }
 
@@ -1284,7 +972,7 @@ void CrownyState::SetState(int cur_player, bool double_turn,
                                const std::vector<int>& dice,
                                const std::vector<int>& bar,
                                const std::vector<int>& scores,
-                               const std::vector<std::vector<int>>& board) {
+                               const std::vector<std::vector<std::vector<Piece>>>& board) {
   cur_player_ = cur_player;
   double_turn_ = double_turn;
   dice_ = dice;
@@ -1292,43 +980,27 @@ void CrownyState::SetState(int cur_player, bool double_turn,
   scores_ = scores;
   board_ = board;
 
-  SPIEL_CHECK_EQ(CountTotalCheckers(kXPlayerId),
-                 NumCheckersPerPlayer(game_.get()));
-  SPIEL_CHECK_EQ(CountTotalCheckers(kOPlayerId),
-                 NumCheckersPerPlayer(game_.get()));
 }
 
 CrownyGame::CrownyGame(const GameParameters& params)
     : Game(kGameType, params),
       scoring_type_(
-          ParseScoringType(ParameterValue<std::string>("scoring_type"))),
-      hyper_backgammon_(ParameterValue<bool>("hyper_backgammon")) {}
+          ParseScoringType(ParameterValue<std::string>("scoring_type"))) {}
 
 double CrownyGame::MaxUtility() const {
-  if (hyper_backgammon_) {
-    // We do not have the cube implemented, so Hyper-backgammon us currently
-    // restricted to a win-loss game regardless of the scoring type.
-    return 1;
-  }
 
   switch (scoring_type_) {
     case ScoringType::kWinLossScoring:
       return 1;
-    case ScoringType::kEnableGammons:
-      return 2;
     case ScoringType::kFullScoring:
-      return 3;
+      return 2;
     default:
       SpielFatalError("Unknown scoring_type");
   }
 }
 
 int CrownyGame::NumCheckersPerPlayer() const {
-  if (hyper_backgammon_) {
-    return 3;
-  } else {
     return kNumCheckersPerPlayer;
-  }
 }
 
 }  // namespace crowny
